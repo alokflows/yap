@@ -1,4 +1,4 @@
-// VoiceBridge relay.
+// Yap relay.
 //
 // One tiny process does two jobs:
 //   1. Serves the phone web app (public/index.html) over HTTP.
@@ -118,14 +118,21 @@ const ROOM_CODE_RE = /^[A-Za-z0-9]{3,12}$/;
 // ---------------------------------------------------------------------------
 const MAX_SESSION_MESSAGES = 500;                 // messages kept per code
 const MAX_SESSIONS = 5_000;                        // total codes kept at once
+const MAX_KNOWN_DIDS = 50;                          // remembered devices per code
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;        // evict a code idle for 12h
-const sessions = new Map();                        // code -> { messages, updated }
+const sessions = new Map();                        // code -> session (see below)
 let msgSeq = 0;
 
+// A session carries this code's room policy alongside its notes, so a host's
+// lock survives brief disconnects (it lives as long as the 12h session does):
+//   messages   past notes for late joiners
+//   open       whether *new/unknown* devices may join (host-controlled)
+//   hostDid    device id of the host (first device to join)
+//   knownDids  devices allowed to (re)join even when locked — Set, insertion-ordered
 function getSession(code) {
   let s = sessions.get(code);
   if (!s) {
-    s = { messages: [], updated: Date.now() };
+    s = { messages: [], updated: Date.now(), open: true, hostDid: null, knownDids: new Set() };
     sessions.set(code, s);
     if (sessions.size > MAX_SESSIONS) {
       let oldestKey = null, oldestT = Infinity;
@@ -134,6 +141,20 @@ function getSession(code) {
     }
   }
   return s;
+}
+
+function rememberDevice(sess, did) {
+  if (!did) return;
+  sess.knownDids.add(did);
+  // Evict oldest devices past the cap, but never the host — otherwise a busy
+  // code could lock its own host out on reconnect.
+  while (sess.knownDids.size > MAX_KNOWN_DIDS) {
+    let evicted = false;
+    for (const d of sess.knownDids) {
+      if (d !== sess.hostDid) { sess.knownDids.delete(d); evicted = true; break; }
+    }
+    if (!evicted) break;
+  }
 }
 
 function getRoom(code) {
@@ -145,15 +166,19 @@ function getRoom(code) {
   return room;
 }
 
-function presence(code) {
+// Live room state: connection counts + the visible member list + lock policy.
+// Built only on join/leave/lock changes — never on the per-message hot path.
+function roomState(code) {
   const room = rooms.get(code) || new Map();
-  let phones = 0;
-  let desktops = 0;
-  for (const role of room.values()) {
-    if (role === 'phone') phones += 1;
-    else if (role === 'desktop') desktops += 1;
+  const sess = sessions.get(code);
+  const hostDid = sess ? sess.hostDid : null;
+  let phones = 0, desktops = 0;
+  const members = [];
+  for (const m of room.values()) {
+    if (m.role === 'phone') phones += 1; else if (m.role === 'desktop') desktops += 1;
+    members.push({ id: m.id, role: m.role, isHost: !!hostDid && m.did === hostDid });
   }
-  return { phones, desktops };
+  return { phones, desktops, members, open: sess ? sess.open : true, hostDid };
 }
 
 function send(ws, payload) {
@@ -170,8 +195,13 @@ function broadcast(code, payload, { exclude } = {}) {
   }
 }
 
-function notifyPresence(code) {
-  broadcast(code, { type: 'presence', ...presence(code) });
+function notifyRoom(code) {
+  broadcast(code, { type: 'presence', ...roomState(code) });
+}
+
+let connSeq = 0;
+function sanitizeDid(raw) {
+  return (raw || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
 }
 
 const wss = new WebSocketServer({ server, path: '/ws' });
@@ -180,6 +210,7 @@ wss.on('connection', (ws, req) => {
   const params = new URL(req.url, 'http://localhost').searchParams;
   const code = (params.get('room') || '').trim();
   const role = params.get('role') === 'desktop' ? 'desktop' : 'phone';
+  const did = sanitizeDid(params.get('did'));
 
   if (!ROOM_CODE_RE.test(code)) {
     send(ws, { type: 'error', message: 'Invalid room code. Use 3-12 letters/numbers.' });
@@ -187,19 +218,36 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
+  const sess = getSession(code);
+
+  // Lock enforcement: when the host has turned "Allow others" off, only devices
+  // this session already knows may (re)join. The host's own phone/computer keep
+  // their device id, so they reconnect freely; unknown devices are refused.
+  if (!sess.open && did && !sess.knownDids.has(did)) {
+    send(ws, { type: 'error', code: 'locked', message: 'This room is locked by its host.' });
+    ws.close();
+    return;
+  }
+
+  // First device to ever join becomes the host.
+  if (!sess.hostDid && did) sess.hostDid = did;
+  rememberDevice(sess, did);
+  sess.updated = Date.now();
+
   ws.isAlive = true;
   ws.role = role;
   ws.code = code;
+  ws.did = did;
+  ws.connId = 'c' + (++connSeq);
 
   const room = getRoom(code);
-  room.set(ws, role);
-  console.log(`[ws] ${role} joined room ${code} (phones/desktops:`, presence(code), ')');
+  room.set(ws, { role, did, id: ws.connId, joinedAt: Date.now() });
+  console.log(`[ws] ${role} joined room ${code}`);
 
-  send(ws, { type: 'joined', role, room: code, ...presence(code) });
+  send(ws, { type: 'joined', role, room: code, id: ws.connId, did, ...roomState(code) });
   // Replay this code's session so a fresh device sees the existing notes.
-  const existing = sessions.get(code);
-  if (existing && existing.messages.length) send(ws, { type: 'history', messages: existing.messages });
-  notifyPresence(code);
+  if (sess.messages.length) send(ws, { type: 'history', messages: sess.messages });
+  notifyRoom(code);
 
   ws.on('pong', () => {
     ws.isAlive = true;
@@ -242,6 +290,17 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    // Host toggles whether new/unknown devices may join. Only the host's own
+    // device id is allowed to change it; everyone is then told the new state.
+    if (msg.type === 'setOpen') {
+      if (sess.hostDid && ws.did === sess.hostDid) {
+        sess.open = !!msg.open;
+        sess.updated = Date.now();
+        notifyRoom(code);
+      }
+      return;
+    }
+
     if (msg.type === 'ping') {
       send(ws, { type: 'pong' });
       return;
@@ -252,8 +311,21 @@ wss.on('connection', (ws, req) => {
     const r = rooms.get(code);
     if (r) {
       r.delete(ws);
-      if (r.size === 0) rooms.delete(code);
-      else notifyPresence(code);
+      if (r.size === 0) {
+        rooms.delete(code);
+      } else {
+        // If the host's device fully left, hand host to the oldest remaining
+        // device so the "Allow others" control never gets orphaned.
+        const s = sessions.get(code);
+        if (s && s.hostDid && ![...r.values()].some((m) => m.did === s.hostDid)) {
+          // Hand host to the oldest remaining device that has a real device id
+          // (skip id-less helpers/agents so the lock control is never orphaned).
+          let oldest = null;
+          for (const m of r.values()) if (m.did && (!oldest || m.joinedAt < oldest.joinedAt)) oldest = m;
+          s.hostDid = oldest ? oldest.did : null;
+        }
+        notifyRoom(code);
+      }
     }
     console.log(`[ws] ${role} left room ${code}`);
   });
@@ -287,6 +359,6 @@ const heartbeat = setInterval(() => {
 wss.on('close', () => clearInterval(heartbeat));
 
 server.listen(PORT, () => {
-  console.log(`VoiceBridge relay listening on http://localhost:${PORT}`);
+  console.log(`Yap relay listening on http://localhost:${PORT}`);
   console.log(`WebSocket endpoint:        ws://localhost:${PORT}/ws`);
 });
