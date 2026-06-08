@@ -85,6 +85,32 @@ const rooms = new Map();
 const MAX_TEXT_LENGTH = 1_000_000; // ~150k words — effectively no limit for dictation
 const ROOM_CODE_RE = /^[A-Za-z0-9]{3,12}$/;
 
+// ---------------------------------------------------------------------------
+// Session store (temporary "notes by code"). In-memory only — no database,
+// no disk. Lets any device that joins a code see that session's past
+// messages. Capped + TTL-evicted so a tiny free instance can't run out of
+// memory. Resets if the host restarts; phones keep their own local copy.
+// ---------------------------------------------------------------------------
+const MAX_SESSION_MESSAGES = 500;                 // messages kept per code
+const MAX_SESSIONS = 5_000;                        // total codes kept at once
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;        // evict a code idle for 12h
+const sessions = new Map();                        // code -> { messages, updated }
+let msgSeq = 0;
+
+function getSession(code) {
+  let s = sessions.get(code);
+  if (!s) {
+    s = { messages: [], updated: Date.now() };
+    sessions.set(code, s);
+    if (sessions.size > MAX_SESSIONS) {
+      let oldestKey = null, oldestT = Infinity;
+      for (const [k, v] of sessions) if (v.updated < oldestT) { oldestT = v.updated; oldestKey = k; }
+      if (oldestKey) sessions.delete(oldestKey);
+    }
+  }
+  return s;
+}
+
 function getRoom(code) {
   let room = rooms.get(code);
   if (!room) {
@@ -145,6 +171,9 @@ wss.on('connection', (ws, req) => {
   console.log(`[ws] ${role} joined room ${code} (phones/desktops:`, presence(code), ')');
 
   send(ws, { type: 'joined', role, room: code, ...presence(code) });
+  // Replay this code's session so a fresh device sees the existing notes.
+  const existing = sessions.get(code);
+  if (existing && existing.messages.length) send(ws, { type: 'history', messages: existing.messages });
   notifyPresence(code);
 
   ws.on('pong', () => {
@@ -167,11 +196,24 @@ wss.on('connection', (ws, req) => {
         send(ws, { type: 'error', message: 'Text too long.' });
         return;
       }
-      // Phone -> desktop(s). Desktop typically does not send text.
-      const { desktops } = presence(code);
-      broadcast(code, { type: 'text', text, mode: msg.mode || 'paste' }, { exclude: ws });
-      // Acknowledge to the sender so the UI can confirm delivery.
-      send(ws, { type: 'ack', delivered: desktops, length: text.length });
+      // Store in the session (so later joiners see it), then fan out.
+      const m = { id: ++msgSeq, text, t: Date.now() };
+      const sess = getSession(code);
+      sess.messages.push(m);
+      if (sess.messages.length > MAX_SESSION_MESSAGES) {
+        sess.messages.splice(0, sess.messages.length - MAX_SESSION_MESSAGES);
+      }
+      sess.updated = m.t;
+      const peers = (rooms.get(code)?.size || 1) - 1; // other connected devices
+      broadcast(code, { type: 'text', id: m.id, text: m.text, t: m.t }, { exclude: ws });
+      send(ws, { type: 'ack', id: m.id, t: m.t, delivered: peers });
+      return;
+    }
+
+    if (msg.type === 'clear') {
+      const sess = sessions.get(code);
+      if (sess) { sess.messages = []; sess.updated = Date.now(); }
+      broadcast(code, { type: 'cleared' }, { exclude: ws });
       return;
     }
 
@@ -209,6 +251,11 @@ const heartbeat = setInterval(() => {
     } catch {
       /* socket already closing */
     }
+  }
+  // Evict idle sessions so memory stays bounded on a small free instance.
+  const now = Date.now();
+  for (const [code, sess] of sessions) {
+    if (now - sess.updated > SESSION_TTL_MS) sessions.delete(code);
   }
 }, HEARTBEAT_MS);
 

@@ -277,8 +277,9 @@
       <div style="flex:1; min-width:0;">
         <label for="room">Pairing code</label><br />
         <input id="room" inputmode="latin" autocomplete="off" autocapitalize="characters"
-               spellcheck="false" maxlength="12" placeholder="ABCD" aria-label="Pairing code" />
+               spellcheck="false" maxlength="12" placeholder="tap New →" aria-label="Pairing code" />
       </div>
+      <button id="genBtn" type="button" title="Generate a new random code">New</button>
       <button id="connectBtn" type="button">Connect</button>
     </div>
 
@@ -331,7 +332,7 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const els = {
-      room: $('room'), connect: $('connectBtn'), status: $('status'), statusText: $('statusText'),
+      room: $('room'), connect: $('connectBtn'), gen: $('genBtn'), status: $('status'), statusText: $('statusText'),
       text: $('text'), interim: $('interim'), mic: $('mic'), send: $('send'), copyInput: $('copyInput'), toast: $('toast'),
       tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabHistory: $('tabHistory'),
       panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelHistory: $('panelHistory'),
@@ -342,12 +343,14 @@
     const KEYS = { room: 'yap.room', mode: 'yap.mode', history: 'yap.history', autocopy: 'yap.autocopy' };
     const MAX_HISTORY = 300;
 
-    let ws = null, reconnectTimer = null, manualClose = false;
+    let ws = null, reconnectTimer = null, backoff = 500;
+    const outbox = []; // texts awaiting server ack, FIFO
     let role = localStorage.getItem(KEYS.mode) === 'receive' ? 'desktop' : 'phone';
-    let peers = 0; // desktops when sending, phones when receiving
+    let peers = 0; // other devices on this code
 
     // ---- session history (persisted; survives disconnect / refresh) -------
     let history = loadHistory();
+    const seenIds = new Set(history.map((e) => e.id).filter(Boolean));
     function loadHistory() { try { return JSON.parse(localStorage.getItem(KEYS.history)) || []; } catch { return []; } }
     function saveHistory() {
       try { localStorage.setItem(KEYS.history, JSON.stringify(history.slice(-MAX_HISTORY))); }
@@ -355,8 +358,15 @@
     }
     let idSeq = Date.now();
     function addEntry(entry) {
-      const e = { id: ++idSeq, t: Date.now(), ...entry };
+      const id = entry.id || ('l' + (++idSeq));
+      if (seenIds.has(id)) return history.find((e) => e.id === id); // dedup replays
+      const e = { t: Date.now(), ...entry, id };
+      seenIds.add(id);
       history.push(e);
+      if (history.length > MAX_HISTORY) {
+        const removed = history.splice(0, history.length - MAX_HISTORY);
+        removed.forEach((r) => seenIds.delete(r.id));
+      }
       saveHistory();
       renderHistory();
       return e;
@@ -454,71 +464,93 @@
       return `${proto}//${location.host}/ws?role=${role}&room=${encodeURIComponent(room)}`;
     }
 
-    function connect() {
+    function connect(force) {
       const room = els.room.value.trim().toUpperCase();
       if (!/^[A-Z0-9]{3,12}$/.test(room)) { toast('Enter a 3–12 char code', 'bad'); return; }
       localStorage.setItem(KEYS.room, room);
       els.room.value = room;
-      manualClose = false;
-      cleanupSocket();
+      // Don't churn: if already live on the same room+role, leave it alone.
+      if (!force && ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)
+          && ws._room === room && ws._role === role) return;
+      clearTimeout(reconnectTimer);
+      closeCurrent();
       setStatus('waiting', 'Connecting…');
-      ws = new WebSocket(wsUrl(room));
+      const sock = new WebSocket(wsUrl(room));
+      sock._room = room; sock._role = role; sock._intentional = false;
+      ws = sock;
 
-      ws.onopen = () => { setStatus('waiting', role === 'phone' ? 'Waiting for computer…' : 'Waiting for phone…');
-        els.connect.textContent = 'Connected'; els.connect.classList.add('connected'); };
-      ws.onmessage = (ev) => {
+      sock.onopen = () => {
+        if (sock !== ws) return;
+        backoff = 500;
+        setStatus('waiting', role === 'phone' ? 'Waiting for computer…' : 'Waiting for phone…');
+        els.connect.textContent = 'Connected'; els.connect.classList.add('connected');
+      };
+      sock.onmessage = (ev) => {
+        if (sock !== ws) return;
         let msg; try { msg = JSON.parse(ev.data); } catch { return; }
-        if (msg.type === 'joined' || msg.type === 'presence') {
-          peers = role === 'phone' ? (msg.desktops || 0) : (msg.phones || 0);
-          refreshStatusLabel();
-        } else if (msg.type === 'text') {
-          receiveText(msg.text);
-        } else if (msg.type === 'ack') {
-          markDelivered(msg.delivered > 0);
-          toast(msg.delivered > 0 ? 'Sent ✓' : 'Saved — no one connected yet', msg.delivered > 0 ? 'good' : 'bad');
-        } else if (msg.type === 'error') {
-          toast(msg.message || 'Error', 'bad');
-        }
+        handleMessage(msg);
       };
-      ws.onclose = () => {
+      sock.onclose = () => {
+        if (sock._intentional || sock !== ws) return; // ignore intentional / stale closes
         els.connect.textContent = 'Connect'; els.connect.classList.remove('connected');
-        if (manualClose) { setStatus('offline', 'Disconnected'); return; }
         setStatus('offline', 'Reconnecting…');
-        clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connect, 1500);
+        clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => connect(true), backoff);
+        backoff = Math.min(backoff * 2, 5000); // exponential backoff, capped
       };
-      ws.onerror = () => {};
+      sock.onerror = () => {};
     }
 
-    function cleanupSocket() {
-      if (ws) { manualClose = true; try { ws.close(); } catch {} ws = null; manualClose = false; }
+    function closeCurrent() {
+      if (ws) { ws._intentional = true; try { ws.close(); } catch {} ws = null; }
     }
 
     // ---- send / receive ---------------------------------------------------
-    let lastOutEntry = null;
+    function ingest(m, dir, delivered) {
+      if (!m || !m.text) return;
+      addEntry({ id: 's' + m.id, dir, text: m.text, t: m.t || Date.now(), delivered });
+    }
+    function showLatest(text) {
+      els.latestText.textContent = text;
+      els.latestText.classList.remove('empty');
+    }
+    function handleMessage(msg) {
+      if (msg.type === 'joined' || msg.type === 'presence') {
+        peers = role === 'phone' ? (msg.desktops || 0) : (msg.phones || 0);
+        refreshStatusLabel();
+      } else if (msg.type === 'history') {
+        // server replayed this code's saved notes
+        (msg.messages || []).forEach((m) => ingest(m, 'in'));
+        const last = history[history.length - 1];
+        if (last) showLatest(last.text);
+      } else if (msg.type === 'text') {
+        ingest(msg, 'in');
+        showLatest(msg.text);
+        if (els.autoCopy.checked) copyText(msg.text).then((ok) => { if (ok) toast('Copied ✓', 'good'); });
+      } else if (msg.type === 'ack') {
+        const text = outbox.shift();
+        if (msg.id != null && text != null) ingest({ id: msg.id, text, t: msg.t }, 'out', msg.delivered > 0);
+        toast(msg.delivered > 0 ? 'Sent ✓' : 'Saved — shows when someone joins', msg.delivered > 0 ? 'good' : '');
+      } else if (msg.type === 'cleared') {
+        history = []; seenIds.clear(); saveHistory(); renderHistory();
+        els.latestText.textContent = 'Waiting for messages…'; els.latestText.classList.add('empty');
+        toast('Session cleared');
+      } else if (msg.type === 'error') {
+        toast(msg.message || 'Error', 'bad');
+      }
+    }
     function doSend(text) {
       const value = (text ?? '').trim();
       if (!value) return false;
-      // Always record to history first, so nothing is lost on a bad connection.
-      const connected = ws && ws.readyState === WebSocket.OPEN;
-      lastOutEntry = addEntry({ dir: 'out', text: value, delivered: connected ? undefined : false });
-      if (!connected) { toast('Saved to History (not connected)', 'bad'); return false; }
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        // Saved locally so nothing is lost on a bad connection.
+        addEntry({ dir: 'out', text: value, delivered: false });
+        toast('Saved to History (offline)', 'bad');
+        return false;
+      }
+      outbox.push(value);
       ws.send(JSON.stringify({ type: 'text', text: value }));
       return true;
-    }
-    function markDelivered(ok) {
-      if (lastOutEntry) {
-        lastOutEntry.delivered = ok ? true : false;
-        saveHistory(); renderHistory();
-        lastOutEntry = ok ? null : lastOutEntry;
-      }
-    }
-    function receiveText(text) {
-      const value = (text ?? '').trim();
-      if (!value) return;
-      addEntry({ dir: 'in', text: value });
-      els.latestText.textContent = value;
-      els.latestText.classList.remove('empty');
-      if (els.autoCopy.checked) copyText(value).then((ok) => { if (ok) toast('Copied ✓', 'good'); });
     }
 
     // ---- tabs / role ------------------------------------------------------
@@ -543,8 +575,23 @@
     els.tabHistory.addEventListener('click', () => setTab('history'));
 
     // ---- wire up controls -------------------------------------------------
-    els.connect.addEventListener('click', connect);
-    els.room.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+    els.connect.addEventListener('click', () => connect(true));
+    els.room.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(true); });
+
+    function generateCode(len = 5) {
+      const cs = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous 0/O/1/I
+      let out = '';
+      const arr = new Uint32Array(len);
+      if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(arr);
+      else for (let i = 0; i < len; i++) arr[i] = Math.floor(Math.random() * 4294967296);
+      for (let i = 0; i < len; i++) out += cs[arr[i] % cs.length];
+      return out;
+    }
+    els.gen.addEventListener('click', () => {
+      els.room.value = generateCode();
+      connect(true);
+      toast('New code: ' + els.room.value, 'good');
+    });
     els.send.addEventListener('click', () => { if (doSend(els.text.value)) els.text.value = ''; });
 
     els.copyInput.addEventListener('click', () => {
@@ -579,10 +626,11 @@
 
     els.clearSession.addEventListener('click', () => {
       if (!history.length) return;
-      if (!confirm('Clear the whole session history?')) return;
-      history = []; saveHistory(); renderHistory();
+      if (!confirm('Clear this session for everyone on this code?')) return;
+      history = []; seenIds.clear(); saveHistory(); renderHistory();
       els.latestText.textContent = 'Waiting for messages…';
       els.latestText.classList.add('empty');
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'clear' }));
       toast('Session cleared');
     });
 
