@@ -187,6 +187,36 @@
     .autocopy { display: flex; align-items: center; gap: 7px; font-size: 0.8rem; color: var(--ink-soft); margin-left: auto; }
     .autocopy input { width: 17px; height: 17px; accent-color: var(--accent); }
 
+    /* Direct-paste setup card --------------------------------------------- */
+    .paste-setup {
+      background: var(--bg-elev); border: 1px solid var(--hairline);
+      border-radius: var(--radius-lg); padding: 16px 18px;
+    }
+    .ps-head { display: flex; align-items: flex-start; gap: 12px; }
+    .ps-head .ps-title { font-size: 0.98rem; font-weight: 650; letter-spacing: -0.01em; }
+    .ps-head .ps-sub { font-size: 0.8rem; color: var(--ink-soft); line-height: 1.45; margin-top: 4px; }
+    .ps-head .ghost-btn { flex-shrink: 0; margin-top: 2px; }
+    .ps-body { margin-top: 14px; }
+    .ps-code {
+      font-size: 0.82rem; color: var(--ink-soft); margin-bottom: 12px;
+      padding: 9px 12px; background: var(--surface); border-radius: 10px; border: 1px solid var(--hairline);
+    }
+    .ps-code b { color: var(--ink); letter-spacing: 0.14em; font-weight: 700; }
+    .ps-code.warn { color: var(--warn); }
+    .ps-dl { display: flex; gap: 8px; flex-wrap: wrap; }
+    .dl-btn {
+      flex: 1; min-width: 92px; text-align: center; text-decoration: none;
+      padding: 12px 10px; border-radius: 12px; border: 1px solid var(--hairline);
+      background: var(--surface); color: var(--ink); font-size: 0.86rem; font-weight: 650;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      transition: transform 120ms var(--ease), border-color var(--dur) var(--ease);
+    }
+    .dl-btn:active { transform: scale(0.96); }
+    .dl-btn .os-sub { font-size: 0.66rem; color: var(--ink-faint); font-weight: 500; }
+    .dl-btn.primary { border-color: var(--accent); box-shadow: 0 0 0 3px oklch(72% 0.17 285 / 0.16); }
+    .ps-steps { margin: 14px 0 0; padding-left: 20px; color: var(--ink-soft); font-size: 0.82rem; line-height: 1.6; }
+    .ps-steps b { color: var(--ink); font-weight: 600; }
+
     /* History / session feed (shared) ------------------------------------- */
     .session-bar {
       display: flex; align-items: center; gap: 10px; padding: 2px 2px 10px;
@@ -313,6 +343,29 @@
           <label class="autocopy"><input type="checkbox" id="autoCopy" /> Auto-copy</label>
         </div>
       </div>
+
+      <div class="paste-setup">
+        <div class="ps-head">
+          <div>
+            <div class="ps-title">Paste straight to your cursor</div>
+            <div class="ps-sub">A browser can’t type into other apps. Download the tiny Yap helper, run it once with your code, and every message is copied here instantly — just press ⌘/Ctrl-V anywhere. It auto-pastes too, where your system allows.</div>
+          </div>
+          <button class="ghost-btn" id="pasteToggle" type="button" aria-expanded="false">Set up</button>
+        </div>
+        <div class="ps-body hidden" id="pasteBody">
+          <div class="ps-code" id="psCode">Connect with a code first, then download.</div>
+          <div class="ps-dl">
+            <a class="dl-btn" id="dlMac" href="/dl/yap-mac.command" download>macOS<span class="os-sub">double-click</span></a>
+            <a class="dl-btn" id="dlWin" href="/dl/yap-windows.bat" download>Windows<span class="os-sub">double-click</span></a>
+            <a class="dl-btn" id="dlLinux" href="/dl/yap-linux.sh" download>Linux<span class="os-sub">bash run</span></a>
+          </div>
+          <ol class="ps-steps">
+            <li>Download the file for your computer.</li>
+            <li>Open it and enter this same <b>pairing code</b>.</li>
+            <li>Send from your phone → press <b>⌘/Ctrl-V</b> where you want it.</li>
+          </ol>
+        </div>
+      </div>
     </section>
 
     <!-- HISTORY (and shared session feed) -->
@@ -337,6 +390,8 @@
       tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabHistory: $('tabHistory'),
       panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelHistory: $('panelHistory'),
       latestText: $('latestText'), copyLatest: $('copyLatest'), autoCopy: $('autoCopy'),
+      pasteToggle: $('pasteToggle'), pasteBody: $('pasteBody'), psCode: $('psCode'),
+      dlMac: $('dlMac'), dlWin: $('dlWin'), dlLinux: $('dlLinux'),
       feed: $('feed'), histCount: $('histCount'), copyAll: $('copyAll'), clearSession: $('clearSession'),
     };
 
@@ -469,6 +524,7 @@
       if (!/^[A-Z0-9]{3,12}$/.test(room)) { toast('Enter a 3–12 char code', 'bad'); return; }
       localStorage.setItem(KEYS.room, room);
       els.room.value = room;
+      if (els.psCode) updatePasteCode();
       // Don't churn: if already live on the same room+role, leave it alone.
       if (!force && ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)
           && ws._room === room && ws._role === role) return;
@@ -614,6 +670,33 @@
 
     els.autoCopy.checked = localStorage.getItem(KEYS.autocopy) === '1';
     els.autoCopy.addEventListener('change', () => localStorage.setItem(KEYS.autocopy, els.autoCopy.checked ? '1' : '0'));
+
+    // ---- direct-paste setup (download helper, run with the pairing code) --
+    function updatePasteCode() {
+      const code = (els.room.value || '').trim().toUpperCase();
+      if (code) {
+        els.psCode.innerHTML = 'Run the helper with code <b>' + code + '</b>.';
+        els.psCode.classList.remove('warn');
+      } else {
+        els.psCode.textContent = 'Connect with a code first, then download.';
+        els.psCode.classList.add('warn');
+      }
+    }
+    els.pasteToggle.addEventListener('click', () => {
+      const show = els.pasteBody.classList.toggle('hidden') === false;
+      els.pasteToggle.setAttribute('aria-expanded', String(show));
+      els.pasteToggle.textContent = show ? 'Hide' : 'Set up';
+      if (show) updatePasteCode();
+    });
+    els.room.addEventListener('input', updatePasteCode);
+    (function highlightOS() {
+      const ua = navigator.userAgent;
+      let btn = null;
+      if (/Mac/i.test(ua) && !/iPhone|iPad/i.test(ua)) btn = els.dlMac;
+      else if (/Win/i.test(ua)) btn = els.dlWin;
+      else if (/Linux/i.test(ua) && !/Android/i.test(ua)) btn = els.dlLinux;
+      if (btn) btn.classList.add('primary');
+    })();
 
     els.copyAll.addEventListener('click', () => {
       if (!history.length) { toast('History is empty', 'bad'); return; }

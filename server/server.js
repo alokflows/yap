@@ -44,6 +44,31 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Poll endpoint for the dependency-free desktop helpers.
+    // GET /poll/<CODE>/<afterId>        -> JSON  { messages: [{id,text,t}] }
+    // GET /poll/<CODE>/<afterId>/text   -> lines "id<TAB>base64(text)" (shell-safe)
+    // Returns only messages with id > afterId so helpers fetch just what's new.
+    const pollMatch = urlPath.match(/^\/poll\/([A-Za-z0-9]{3,12})\/(\d+)(\/text)?$/);
+    if (pollMatch) {
+      const code = pollMatch[1];
+      const after = Number(pollMatch[2]) || 0;
+      const asText = Boolean(pollMatch[3]);
+      const sess = sessions.get(code);
+      const msgs = sess ? sess.messages.filter((m) => m.id > after) : [];
+      const headers = { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' };
+      if (asText) {
+        const lines = msgs
+          .map((m) => `${m.id}\t${Buffer.from(m.text, 'utf8').toString('base64')}`)
+          .join('\n');
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', ...headers });
+        res.end(lines);
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', ...headers });
+        res.end(JSON.stringify({ messages: msgs.map((m) => ({ id: m.id, text: m.text, t: m.t })) }));
+      }
+      return;
+    }
+
     const requested = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
     let filePath = path.join(PUBLIC_DIR, requested);
 
