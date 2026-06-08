@@ -42,8 +42,8 @@ The helper is **zero-install** (pure built-in tools — `curl` + your system cli
 
 | OS | Download | Auto-paste |
 |----|----------|------------|
-| **macOS** | `yap-mac.command` (double-click) | needs one-time Accessibility permission |
-| **Windows** | `yap-windows.bat` (double-click) | works out of the box |
+| **macOS** | `yap-mac.command` — double-click to run | needs one-time Accessibility permission |
+| **Windows** | `yap-windows.bat` — runs **invisibly** with a system-tray icon (right-click → Quit) | works out of the box |
 | **Linux** | `yap-linux.sh` (`bash yap-linux.sh`) | needs `xdotool` (optional) |
 
 Run it once with your pairing code. From then on, **every message you send is instantly on that computer's clipboard** — so you can blindly press **⌘/Ctrl-V** anywhere with full confidence. Where the OS allows, it also auto-pastes into the active window.
@@ -85,10 +85,14 @@ A GitHub Action (`.github/workflows/keepalive.yml`) pings the deployment every ~
 - The relay **never writes to disk**; rooms and history live in memory only and are evicted after 12h idle.
 - Always run the relay behind **HTTPS/WSS** (Render does this for you).
 
+## Install it like an app
+
+Yap is a **PWA** — open it and choose *Add to Home Screen* (iOS) or *Install* (Android/Chrome/Edge) to get a standalone app with its own icon and an offline shell.
+
 ## Roadmap
 
-- PWA install (add-to-home-screen) + offline shell
 - QR code that opens the phone app pre-paired
+- **Host-controlled rooms** — when a second device joins your code, the first device can approve or deny it (so a guessed code can't silently listen in)
 - Optional end-to-end encryption of relayed text
 
 ---

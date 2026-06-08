@@ -1,4 +1,4 @@
-// VoiceBridge relay.
+// Yap relay.
 //
 // One tiny process does two jobs:
 //   1. Serves the phone web app (public/index.html) over HTTP.
@@ -287,6 +287,6 @@ const heartbeat = setInterval(() => {
 wss.on('close', () => clearInterval(heartbeat));
 
 server.listen(PORT, () => {
-  console.log(`VoiceBridge relay listening on http://localhost:${PORT}`);
+  console.log(`Yap relay listening on http://localhost:${PORT}`);
   console.log(`WebSocket endpoint:        ws://localhost:${PORT}/ws`);
 });
