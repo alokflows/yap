@@ -748,7 +748,6 @@
         if (sock._intentional || sock !== ws) return; // ignore intentional / stale closes
         els.connect.textContent = 'Connect'; els.connect.classList.remove('connected');
         els.roomBar.classList.add('hidden');
-        if (lockedOut) { setStatus('offline', 'Room locked'); return; }
         setStatus('offline', 'Reconnecting…');
         clearTimeout(reconnectTimer);
         reconnectTimer = setTimeout(() => connect(true), backoff);
@@ -793,7 +792,15 @@
         els.latestText.textContent = 'Waiting for messages…'; els.latestText.classList.add('empty');
         toast('Session cleared');
       } else if (msg.type === 'error') {
-        if (msg.code === 'locked') { lockedOut = true; closeCurrent(); }
+        if (msg.code === 'locked') {
+          // Refused by a locked room. closeCurrent() makes the close intentional,
+          // so set the standing UI here rather than relying on onclose.
+          lockedOut = true;
+          closeCurrent();
+          els.connect.textContent = 'Connect'; els.connect.classList.remove('connected');
+          els.roomBar.classList.add('hidden');
+          setStatus('offline', 'Room locked');
+        }
         toast(msg.message || 'Error', 'bad');
       }
     }

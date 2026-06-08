@@ -82,8 +82,9 @@ A GitHub Action (`.github/workflows/keepalive.yml`) pings the deployment every ~
 ## Rooms & access
 
 - Anyone with the code can join — so the first device becomes the **host** and gets an **Allow others** toggle.
-- Turn it off to **lock the room** to the devices already in it: your own phone/computer can still drop and reconnect (each device keeps a private local id), but **new/unknown devices are refused**.
+- Turn it off to **lock the room** to the devices already in it: your own phone/computer can still drop and reconnect (each device keeps a private local id), but **new/unknown devices are refused from the web app**.
 - Everyone sees the small **member list** of who's connected. The lock lives on the session, so it survives brief disconnects.
+- Scope today: the lock gates **web-app joiners** (the common "someone opened my link" case). The desktop **helper/agent** receive via the lightweight `/poll` path, which isn't gated yet — treat those as a trusted tool you run on your own machine. Extending the lock to that path ships with the approve/deny work below.
 
 ## Security notes
 
@@ -98,7 +99,7 @@ Yap is a **PWA** — open it and choose *Add to Home Screen* (iOS) or *Install* 
 ## Roadmap
 
 - QR code that opens the phone app pre-paired
-- Per-device **approve / deny** prompts for the host (on top of today's room lock)
+- Per-device **approve / deny** prompts for the host, and extending the room lock to the desktop helper/`poll` path (on top of today's web-app lock)
 - Optional end-to-end encryption of relayed text
 
 ---

@@ -146,9 +146,14 @@ function getSession(code) {
 function rememberDevice(sess, did) {
   if (!did) return;
   sess.knownDids.add(did);
+  // Evict oldest devices past the cap, but never the host — otherwise a busy
+  // code could lock its own host out on reconnect.
   while (sess.knownDids.size > MAX_KNOWN_DIDS) {
-    const oldest = sess.knownDids.values().next().value;
-    sess.knownDids.delete(oldest);
+    let evicted = false;
+    for (const d of sess.knownDids) {
+      if (d !== sess.hostDid) { sess.knownDids.delete(d); evicted = true; break; }
+    }
+    if (!evicted) break;
   }
 }
 
@@ -313,8 +318,10 @@ wss.on('connection', (ws, req) => {
         // device so the "Allow others" control never gets orphaned.
         const s = sessions.get(code);
         if (s && s.hostDid && ![...r.values()].some((m) => m.did === s.hostDid)) {
+          // Hand host to the oldest remaining device that has a real device id
+          // (skip id-less helpers/agents so the lock control is never orphaned).
           let oldest = null;
-          for (const m of r.values()) if (!oldest || m.joinedAt < oldest.joinedAt) oldest = m;
+          for (const m of r.values()) if (m.did && (!oldest || m.joinedAt < oldest.joinedAt)) oldest = m;
           s.hostDid = oldest ? oldest.did : null;
         }
         notifyRoom(code);
