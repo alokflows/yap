@@ -200,9 +200,9 @@
     .pair-cta.primary { background: var(--ink); color: var(--bg-elev); border-color: var(--ink); }
     .pair-cta.primary:hover { opacity: 0.9; }
     .pair-state .ghost-btn { flex-shrink: 0; }
-    .code-display { display: inline-block; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); margin-top: 4px; padding: 3px 12px; border-radius: 9px; background: var(--accent-soft); border: 1px solid var(--accent); cursor: pointer; user-select: none; transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease), background var(--dur) var(--ease); }
+    .code-display { display: inline-block; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); margin-top: 4px; padding: 3px 12px; border-radius: 9px; background: var(--accent-soft); border: 1px solid var(--accent); cursor: pointer; user-select: none; transition: color 90ms var(--ease), border-color 90ms var(--ease), background 90ms var(--ease), transform 90ms var(--ease); }
     .code-display:hover { color: var(--accent-strong); border-color: var(--accent-strong); }
-    .code-display.copied { color: var(--good); border-color: var(--good); background: oklch(58% 0.12 150 / 0.14); }
+    .code-display:active { color: var(--accent-ink); border-color: var(--accent-strong); background: var(--accent-strong); transform: scale(0.97); }
     .icon-mini { flex-shrink: 0; width: 30px; height: 38px; border: none; background: transparent; color: var(--ink-faint); font-size: 1.5rem; line-height: 1; cursor: pointer; }
     .icon-mini:hover { color: var(--ink); }
 
@@ -279,10 +279,10 @@
     .send:disabled { opacity: 0.4; }
     .send.alt {
       background: transparent; color: var(--ink-soft); border: 1px solid var(--hairline); padding: 0 16px;
-      transition: transform 120ms var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+      transition: transform 120ms var(--ease), color 90ms var(--ease), border-color 90ms var(--ease);
     }
     .send.alt:hover { color: var(--ink); border-color: var(--ink-faint); opacity: 1; }
-    .send.alt.copied { color: var(--good); border-color: var(--good); }
+    .send.alt:active { color: var(--accent-strong); border-color: var(--accent); transform: scale(0.97); }
 
     /* ---- Receive -------------------------------------------------------- */
     .latest {
@@ -296,11 +296,10 @@
     .copy-btn {
       padding: 10px 18px; border: none; border-radius: 11px; cursor: pointer;
       background: var(--ink); color: var(--bg-elev); font-weight: 650; font-size: 0.88rem;
-      transition: transform 120ms var(--ease), background var(--dur) var(--ease), opacity var(--dur) var(--ease);
+      transition: transform 120ms var(--ease), background 90ms var(--ease), opacity var(--dur) var(--ease);
     }
     .copy-btn:hover { opacity: 0.9; }
-    .copy-btn:active { transform: scale(0.96); }
-    .copy-btn.copied { background: var(--good); }
+    .copy-btn:active { transform: scale(0.96); background: var(--accent); }
 
     /* Toggle switch (replaces the auto-copy checkbox) --------------------- */
     .toggle { display: inline-flex; align-items: center; gap: 9px; margin-left: auto; cursor: pointer; user-select: none; }
@@ -365,7 +364,9 @@
     .ghost-btn:active { transform: scale(0.95); }
     .ghost-btn.danger { color: var(--bad); border-color: oklch(56% 0.18 25 / 0.32); }
     .ghost-btn.danger:hover { border-color: var(--bad); }
-    .ghost-btn.copied { color: var(--good); border-color: var(--good); }
+    /* press-and-hold tint for the copy-all action (snappy, reverts on release) */
+    #copyAll { transition: transform 120ms var(--ease), color 90ms var(--ease), border-color 90ms var(--ease); }
+    #copyAll:active { color: var(--accent-strong); border-color: var(--accent); }
 
     .feed { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
     .feed-empty { color: var(--ink-faint); font-size: 0.9rem; text-align: center; padding: 48px 20px; }
@@ -384,11 +385,10 @@
     .feed li button.item-copy {
       flex-shrink: 0; padding: 6px 11px; border: 1px solid var(--hairline); border-radius: 9px; cursor: pointer;
       background: var(--surface); color: var(--ink-soft); font-size: 0.72rem; font-weight: 600;
-      transition: transform 120ms var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+      transition: transform 120ms var(--ease), color 90ms var(--ease), border-color 90ms var(--ease);
     }
     .feed li button.item-copy:hover { color: var(--ink); border-color: var(--ink-faint); }
-    .feed li button.item-copy:active { transform: scale(0.94); }
-    .feed li button.item-copy.copied { color: var(--good); border-color: var(--good); }
+    .feed li button.item-copy:active { transform: scale(0.94); color: var(--accent-strong); border-color: var(--accent); }
     @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } }
 
     .toast {
@@ -683,8 +683,7 @@
         copyBtn.className = 'item-copy';
         copyBtn.textContent = 'Copy';
         copyBtn.addEventListener('click', () => copyText(e.text).then((ok) => {
-          if (ok) { copyBtn.textContent = 'Copied'; copyBtn.classList.add('copied');
-            setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('copied'); }, 1200); }
+          toast(ok ? 'Copied ✓' : 'Copy failed', ok ? 'good' : 'bad');
         }));
 
         li.appendChild(body);
@@ -918,8 +917,7 @@
     els.room.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(true); });
     els.codeDisplay.addEventListener('click', () => {
       copyText((els.room.value || '').toUpperCase()).then((ok) => {
-        if (ok) { els.codeDisplay.classList.add('copied');
-          setTimeout(() => els.codeDisplay.classList.remove('copied'), 1100); }
+        toast(ok ? 'Code copied ✓' : 'Copy failed', ok ? 'good' : 'bad');
       });
     });
     els.changeBtn.addEventListener('click', () => {
@@ -937,8 +935,7 @@
       const t = els.text.value.trim();
       if (!t) { toast('Nothing to copy', 'bad'); return; }
       copyText(t).then((ok) => {
-        if (ok) { els.copyInput.textContent = 'Copied ✓'; els.copyInput.classList.add('copied');
-          setTimeout(() => { els.copyInput.textContent = 'Copy'; els.copyInput.classList.remove('copied'); }, 1200); }
+        toast(ok ? 'Copied ✓' : 'Copy failed', ok ? 'good' : 'bad');
       });
     });
 
@@ -946,8 +943,7 @@
       const t = els.latestText.classList.contains('empty') ? '' : els.latestText.textContent;
       if (!t) { toast('Nothing to copy', 'bad'); return; }
       copyText(t).then((ok) => {
-        if (ok) { els.copyLatest.textContent = 'Copied ✓'; els.copyLatest.classList.add('copied');
-          setTimeout(() => { els.copyLatest.textContent = 'Copy'; els.copyLatest.classList.remove('copied'); }, 1200); }
+        toast(ok ? 'Copied ✓' : 'Copy failed', ok ? 'good' : 'bad');
       });
     });
 
@@ -1011,8 +1007,7 @@
       if (!history.length) { toast('History is empty', 'bad'); return; }
       const all = history.map((e) => e.text).join('\n');
       copyText(all).then((ok) => {
-        if (ok) { els.copyAll.textContent = 'Copied ✓'; els.copyAll.classList.add('copied');
-          setTimeout(() => { els.copyAll.textContent = 'Copy all'; els.copyAll.classList.remove('copied'); }, 1300); }
+        toast(ok ? 'Copied all ✓' : 'Copy failed', ok ? 'good' : 'bad');
       });
     });
 
