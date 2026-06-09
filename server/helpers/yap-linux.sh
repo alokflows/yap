@@ -33,8 +33,11 @@ echo ""
 LAST=$(curl -fsS "$SERVER/poll/$CODE/0/text" 2>/dev/null | tail -1 | cut -f1)
 [ -z "$LAST" ] && LAST=0
 
+# Long-poll: the server returns the instant a message arrives, so latency is
+# the network round-trip, not a poll interval. The short sleep only throttles
+# reconnects if the server is unreachable.
 while true; do
-  RESP=$(curl -fsS "$SERVER/poll/$CODE/$LAST/text" 2>/dev/null)
+  RESP=$(curl -fsS --max-time 35 "$SERVER/poll/$CODE/$LAST/text?wait=30" 2>/dev/null)
   if [ -n "$RESP" ]; then
     while IFS=$'\t' read -r ID B64; do
       [ -z "$ID" ] && continue
@@ -44,5 +47,5 @@ while true; do
       echo "  copied #$ID  (Ctrl-V to paste)"
     done <<< "$RESP"
   fi
-  sleep 0.7
+  sleep 0.2
 done

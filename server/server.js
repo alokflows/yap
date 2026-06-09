@@ -108,27 +108,51 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Poll endpoint for the dependency-free desktop helpers.
-    // GET /poll/<CODE>/<afterId>        -> JSON  { messages: [{id,text,t}] }
-    // GET /poll/<CODE>/<afterId>/text   -> lines "id<TAB>base64(text)" (shell-safe)
-    // Returns only messages with id > afterId so helpers fetch just what's new.
+    // GET /poll/<CODE>/<afterId>          -> JSON  { messages: [{id,text,t}] }
+    // GET /poll/<CODE>/<afterId>/text     -> lines "id<TAB>base64(text)" (shell-safe)
+    // Add ?wait=<sec> to long-poll: the server holds the request open and
+    // returns the instant a new message arrives (or empty on timeout), so
+    // delivery is bounded by the network, not a fixed poll interval.
     const pollMatch = urlPath.match(/^\/poll\/([A-Za-z0-9]{3,12})\/(\d+)(\/text)?$/);
     if (pollMatch) {
       const code = pollMatch[1];
       const after = Number(pollMatch[2]) || 0;
       const asText = Boolean(pollMatch[3]);
-      const sess = sessions.get(code);
-      const msgs = sess ? sess.messages.filter((m) => m.id > after) : [];
+      const wait = Math.min(Number(new URL(req.url, 'http://localhost').searchParams.get('wait')) || 0, 30);
+
       const headers = { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' };
-      if (asText) {
-        const lines = msgs
-          .map((m) => `${m.id}\t${Buffer.from(m.text, 'utf8').toString('base64')}`)
-          .join('\n');
-        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', ...headers });
-        res.end(lines);
-      } else {
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', ...headers });
-        res.end(JSON.stringify({ messages: msgs.map((m) => ({ id: m.id, text: m.text, t: m.t })) }));
-      }
+      const respond = (msgs) => {
+        if (asText) {
+          const lines = msgs
+            .map((m) => `${m.id}\t${Buffer.from(m.text, 'utf8').toString('base64')}`)
+            .join('\n');
+          res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', ...headers });
+          res.end(lines);
+        } else {
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', ...headers });
+          res.end(JSON.stringify({ messages: msgs.map((m) => ({ id: m.id, text: m.text, t: m.t })) }));
+        }
+      };
+      const pending = () => {
+        const sess = sessions.get(code);
+        return sess ? sess.messages.filter((m) => m.id > after) : [];
+      };
+
+      const ready = pending();
+      if (ready.length || wait <= 0) { respond(ready); return; }
+
+      // Nothing new yet and the caller asked to wait: park until woken.
+      const sess = getSession(code);
+      let settled = false;
+      const cleanup = () => {
+        clearTimeout(timer);
+        const i = sess.waiters.indexOf(waiter);
+        if (i >= 0) sess.waiters.splice(i, 1);
+      };
+      const waiter = () => { if (settled) return; settled = true; cleanup(); respond(pending()); };
+      const timer = setTimeout(waiter, wait * 1000);
+      sess.waiters.push(waiter);
+      req.on('close', () => { if (!settled) { settled = true; cleanup(); } });
       return;
     }
 
@@ -212,7 +236,7 @@ let msgSeq = 0;
 function getSession(code) {
   let s = sessions.get(code);
   if (!s) {
-    s = { messages: [], updated: Date.now(), open: true, hostDid: null, knownDids: new Set() };
+    s = { messages: [], updated: Date.now(), open: true, hostDid: null, knownDids: new Set(), waiters: [] };
     sessions.set(code, s);
     if (sessions.size > MAX_SESSIONS) {
       let oldestKey = null, oldestT = Infinity;
@@ -221,6 +245,13 @@ function getSession(code) {
     }
   }
   return s;
+}
+
+// Wake any long-poll requests parked on this code (a new message just landed).
+function wakeWaiters(sess) {
+  if (!sess.waiters.length) return;
+  const parked = sess.waiters.splice(0, sess.waiters.length);
+  for (const w of parked) w();
 }
 
 function rememberDevice(sess, did) {
@@ -357,6 +388,7 @@ wss.on('connection', (ws, req) => {
         sess.messages.splice(0, sess.messages.length - MAX_SESSION_MESSAGES);
       }
       sess.updated = m.t;
+      wakeWaiters(sess);
       const peers = (rooms.get(code)?.size || 1) - 1; // other connected devices
       broadcast(code, { type: 'text', id: m.id, text: m.text, t: m.t }, { exclude: ws });
       send(ws, { type: 'ack', id: m.id, t: m.t, delivered: peers });

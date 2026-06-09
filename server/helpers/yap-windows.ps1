@@ -54,7 +54,7 @@ $ni.ContextMenuStrip = $menu
 $ni.ShowBalloonTip(4000, 'Yap', "Connected to $($script:code). Send from your phone - it pastes here. Right-click the tray icon to change the code or quit.", [System.Windows.Forms.ToolTipIcon]::Info)
 
 $timer = New-Object System.Windows.Forms.Timer
-$timer.Interval = 800
+$timer.Interval = 300
 $timer.add_Tick({
   try {
     $r = Invoke-RestMethod "$server/poll/$($script:code)/$($script:last)"
