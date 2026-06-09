@@ -76,15 +76,14 @@ A GitHub Action (`.github/workflows/keepalive.yml`) pings the deployment every ~
 |------|------------|
 | `server/server.js` | Relay: serves the web app, relays text over `/ws`, exposes `/poll` for the helpers |
 | `server/public/index.html` | The entire phone/computer web app (one file, no build step) |
-| `server/public/dl/` | The zero-install desktop helpers (macOS / Windows / Linux) |
-| `agent/agent.py` | Optional advanced Python agent (clipboard-paste / keystroke modes) |
+| `server/helpers/` | The zero-install desktop helpers (macOS / Windows / Linux), served at `/dl/` |
 
 ## Rooms & access
 
 - Anyone with the code can join — so the first device becomes the **host** and gets an **Allow others** toggle.
 - Turn it off to **lock the room** to the devices already in it: your own phone/computer can still drop and reconnect (each device keeps a private local id), but **new/unknown devices are refused from the web app**.
 - Everyone sees the small **member list** of who's connected. The lock lives on the session, so it survives brief disconnects.
-- Scope today: the lock gates **web-app joiners** (the common "someone opened my link" case). The desktop **helper/agent** receive via the lightweight `/poll` path, which isn't gated yet — treat those as a trusted tool you run on your own machine. Extending the lock to that path ships with the approve/deny work below.
+- Scope today: the lock gates **web-app joiners** (the common "someone opened my link" case). The desktop **helper** receives via the lightweight `/poll` path, which isn't gated yet — treat those as a trusted tool you run on your own machine. Extending the lock to that path ships with the approve/deny work below.
 
 ## Security notes
 

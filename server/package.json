@@ -1,9 +1,9 @@
 {
-  "name": "voicebridge-relay",
+  "name": "yap-relay",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Tiny WebSocket relay that pairs a phone web app with a desktop agent so phone text/voice pastes at the desktop cursor.",
+  "description": "Tiny WebSocket relay that pairs a phone web app with a desktop helper so phone text/voice pastes at the desktop cursor.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
