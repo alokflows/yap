@@ -26,38 +26,14 @@ const inTri = (px, py, ax, ay, bx, by, cx, cy) => {
   return !(neg && pos);
 };
 
-// The smile is one cubic bezier, sampled to a polyline. The SAME curve is
-// stroked in icon.svg, so the favicon and these PNGs are pixel-for-pixel the
-// same mark. Control points sit below the endpoints, so it always bows down.
-const SMX = [0.3906, 0.4590, 0.5410, 0.6094];
-const SMY = [0.4141, 0.5020, 0.5020, 0.4141];
-const bez = (t, p) => { const m = 1 - t; return m*m*m*p[0] + 3*m*m*t*p[1] + 3*m*t*t*p[2] + t*t*t*p[3]; };
-const SMILE = Array.from({ length: 41 }, (_, i) => [bez(i / 40, SMX), bez(i / 40, SMY)]);
-const SMILE_HALF = 0.0273; // half of the 28/512 stroke width
-const distSeg = (px, py, ax, ay, bx, by) => {
-  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
-  let t = l2 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
-  t = Math.max(0, Math.min(1, t));
-  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
-};
-const onSmile = (u, v) => {
-  for (let i = 0; i < SMILE.length - 1; i++) {
-    if (distSeg(u, v, SMILE[i][0], SMILE[i][1], SMILE[i + 1][0], SMILE[i + 1][1]) <= SMILE_HALF) return true;
-  }
-  return false;
-};
-
 // Art is defined in a unit square. Returns [r,g,b,a] (a in 0..1) or null.
-// The tail is a thick round-capped stroke from inside the body down toward the
-// left corner: its start is hidden in the body so the two fuse seamlessly, and
-// its rounded cap gives a soft, blunt tip with no sharp point. Same segment +
-// radius is stroked in icon.svg, so favicon and PNGs stay identical.
-const TAIL = { ax: 0.4023, ay: 0.5840, bx: 0.3164, by: 0.7715, r: 0.0488 };
+// A rounded speech bubble with a small triangular tail at the bottom-left
+// corner. No smile. The tail's base sits on the body's straight bottom edge so
+// the two fuse into one shape. icon.svg draws the exact same rect + triangle.
 function artColor(u, v) {
-  const bubble = inRR(u, v, 0.1797, 0.1992, 0.6406, 0.4395, 0.1504)
-    || distSeg(u, v, TAIL.ax, TAIL.ay, TAIL.bx, TAIL.by) <= TAIL.r;
-  if (!bubble) return null;
-  return onSmile(u, v) ? [...CLAY, 1] : [...PAPER, 1];
+  const bubble = inRR(u, v, 0.1660, 0.1660, 0.6660, 0.5000, 0.1035)
+    || inTri(u, v, 0.2695, 0.6660, 0.3906, 0.6660, 0.2090, 0.8340);
+  return bubble ? [...PAPER, 1] : null;
 }
 
 function render(N, { maskable }) {

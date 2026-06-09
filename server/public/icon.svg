@@ -1,9 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Yap">
   <rect width="512" height="512" rx="114" fill="#c4673f"/>
-  <!-- body + a thick round-capped tail that starts inside the body, so they
-       fuse into one bubble with a soft, blunt tip toward the left corner -->
-  <rect x="92" y="102" width="328" height="225" rx="77" fill="#faf3ed"/>
-  <path d="M206 299 L162 395" fill="none" stroke="#faf3ed" stroke-width="50" stroke-linecap="round"/>
-  <!-- smile: one cubic, mirrored exactly in scripts/gen-icons.mjs -->
-  <path d="M200 212 C235 257 277 257 312 212" fill="none" stroke="#c4673f" stroke-width="28" stroke-linecap="round"/>
+  <!-- rounded speech bubble + a small tail at the bottom-left corner; the tail
+       base sits on the body's bottom edge so they fuse into one shape -->
+  <rect x="85" y="85" width="341" height="256" rx="53" fill="#faf3ed"/>
+  <path d="M138 341 L200 341 L107 427 Z" fill="#faf3ed"/>
 </svg>
+
