@@ -27,13 +27,16 @@ const inTri = (px, py, ax, ay, bx, by, cx, cy) => {
 };
 
 // Art is defined in a unit square. Returns [r,g,b,a] (a in 0..1) or null.
-// A rounded speech bubble with a small triangular tail at the bottom-left
-// corner. No smile. The tail's base sits on the body's straight bottom edge so
-// the two fuse into one shape. icon.svg draws the exact same rect + triangle.
 function artColor(u, v) {
-  const bubble = inRR(u, v, 0.1660, 0.1660, 0.6660, 0.5000, 0.1035)
-    || inTri(u, v, 0.2695, 0.6660, 0.3906, 0.6660, 0.2090, 0.8340);
-  return bubble ? [...PAPER, 1] : null;
+  // speech bubble body + downward tail
+  const bubble = inRR(u, v, 0.16, 0.17, 0.68, 0.46, 0.17)
+    || inTri(u, v, 0.30, 0.60, 0.205, 0.82, 0.46, 0.60);
+  if (!bubble) return null;
+  // smile: lower band of a circle
+  const dx = u - 0.50, dy = v - 0.305;
+  const dist = Math.hypot(dx, dy);
+  const onArc = Math.abs(dist - 0.165) <= 0.042 && v > 0.34 && u > 0.30 && u < 0.70;
+  return onArc ? [...CLAY, 1] : [...PAPER, 1];
 }
 
 function render(N, { maskable }) {
