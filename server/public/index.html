@@ -204,7 +204,9 @@
     .pair-cta.primary { background: var(--ink); color: var(--bg-elev); border-color: var(--ink); }
     .pair-cta.primary:hover { opacity: 0.9; }
     .pair-state .ghost-btn { flex-shrink: 0; }
-    .code-display { display: inline-block; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin-top: 4px; padding: 3px 12px; border-radius: 9px; background: var(--accent-soft); border: 1px solid var(--accent); }
+    .code-display { display: inline-block; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); margin-top: 4px; padding: 3px 12px; border-radius: 9px; background: var(--accent-soft); border: 1px solid var(--accent); cursor: pointer; user-select: none; transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease), background var(--dur) var(--ease); }
+    .code-display:hover { color: var(--accent-strong); border-color: var(--accent-strong); }
+    .code-display.copied { color: var(--good); border-color: var(--good); background: oklch(58% 0.12 150 / 0.14); }
     .icon-mini { flex-shrink: 0; width: 30px; height: 38px; border: none; background: transparent; color: var(--ink-faint); font-size: 1.5rem; line-height: 1; cursor: pointer; }
     .icon-mini:hover { color: var(--ink); }
 
@@ -464,7 +466,6 @@
           <label>Pairing code</label>
           <div class="code-display" id="codeDisplay">—</div>
         </div>
-        <button class="ghost-btn" id="copyCode" type="button">Copy</button>
         <button class="ghost-btn invite" id="inviteBtn" type="button" title="Share a link that pairs your friend automatically">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v14"/></svg>
           Invite
@@ -575,7 +576,7 @@
       tagline: $('tagline'), themeBtn: $('themeBtn'), themeColor: $('themeColor'),
       pairStart: $('pairStart'), pairJoin: $('pairJoin'), pairLocked: $('pairLocked'),
       createBtn: $('createBtn'), joinBtn: $('joinBtn'), joinGo: $('joinGo'), joinBack: $('joinBack'),
-      codeDisplay: $('codeDisplay'), copyCode: $('copyCode'), changeBtn: $('changeBtn'),
+      codeDisplay: $('codeDisplay'), changeBtn: $('changeBtn'),
       text: $('text'), interim: $('interim'), mic: $('mic'), micHint: $('micHint'), send: $('send'), copyInput: $('copyInput'), toast: $('toast'),
       tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabDevices: $('tabDevices'), tabHistory: $('tabHistory'),
       panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelDevices: $('panelDevices'), panelHistory: $('panelHistory'),
@@ -923,10 +924,10 @@
     els.joinBack.addEventListener('click', () => setPairState('start'));
     els.joinGo.addEventListener('click', () => connect(true));
     els.room.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(true); });
-    els.copyCode.addEventListener('click', () => {
+    els.codeDisplay.addEventListener('click', () => {
       copyText((els.room.value || '').toUpperCase()).then((ok) => {
-        if (ok) { els.copyCode.textContent = 'Copied ✓'; els.copyCode.classList.add('copied');
-          setTimeout(() => { els.copyCode.textContent = 'Copy'; els.copyCode.classList.remove('copied'); }, 1200); }
+        if (ok) { els.codeDisplay.classList.add('copied');
+          setTimeout(() => els.codeDisplay.classList.remove('copied'), 1100); }
       });
     });
     els.changeBtn.addEventListener('click', () => {
