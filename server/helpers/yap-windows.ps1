@@ -1,13 +1,11 @@
-# Yap helper for Windows.
-#
-# Right-click this file and choose "Run with PowerShell". A small Yap icon
-# appears in your system tray (bottom-right, by the clock); right-click it to
-# change the pairing code or quit. You can minimise the little PowerShell
-# window that opens — leave it running and every message you send from the
-# phone is copied here and pasted at your cursor automatically.
-#
-# This is a plain, readable script on purpose: nothing hidden, nothing
-# encoded — so endpoint security can see exactly what it does.
+# Yap helper — runs invisibly in the background. A mouth icon sits in the
+# system tray (bottom-right by the clock); right-click it to change the code or
+# quit. There is no window to close — closing nothing keeps it running.
+
+# Hide our own console window immediately, so nothing visible lingers even if
+# the launcher's -WindowStyle Hidden is ignored by the system.
+Add-Type -Name Win -Namespace Yap -MemberDefinition '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow(); [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);'
+$null = [Yap.Win]::ShowWindow([Yap.Win]::GetConsoleWindow(), 0)
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing

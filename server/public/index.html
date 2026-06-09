@@ -210,8 +210,9 @@
     .hidden { display: none !important; }
 
     /* ---- Devices (full-width bars + host lock) -------------------------- */
-    .devices-head { display: flex; align-items: baseline; gap: 8px; padding: 2px 2px 12px; }
+    .devices-head { display: flex; align-items: center; gap: 8px; padding: 2px 2px 12px; }
     .devices-head h2 { font-size: 0.95rem; font-weight: 650; margin: 0; }
+    .devices-head .spacer { flex: 1; }
     .devices-empty { color: var(--ink-faint); font-size: 0.9rem; text-align: center; padding: 44px 20px; }
     .room-bar { display: flex; flex-direction: column; gap: 9px; padding: 0 0 14px; }
     .members { display: flex; flex-direction: column; gap: 9px; width: 100%; }
@@ -238,10 +239,10 @@
     .invite { display: inline-flex; align-items: center; gap: 6px; }
     .invite svg { width: 14px; height: 14px; }
     .invite:hover { color: var(--accent); border-color: var(--accent); }
-    .room-bar .toggle { align-self: flex-start; }
-    .room-bar .toggle .track { width: 36px; height: 22px; }
-    .room-bar .toggle .thumb { width: 16px; height: 16px; }
-    .room-bar .toggle input:checked + .track .thumb { transform: translateX(14px); }
+    .devices-head .toggle .track { width: 36px; height: 22px; }
+    .devices-head .toggle .thumb { width: 16px; height: 16px; }
+    .devices-head .toggle input:checked + .track .thumb { transform: translateX(14px); }
+    .devices-head .toggle-label { font-size: 0.78rem; }
     .locked-note { font-size: 0.74rem; color: var(--ink-faint); font-weight: 500; }
 
     /* ---- Compose (Send) ------------------------------------------------- */
@@ -517,7 +518,7 @@
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.8c0-2 1.6-3 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.2 2-1.4 2.4-.4 6 1 8 .6 1 1.4 2 2.4 2 1 0 1.3-.6 2.5-.6s1.5.6 2.5.6 1.7-.9 2.3-1.9c.7-1 1-2 1-2.1-.1 0-2-.8-2-2.9zM14.6 6.2c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.8-.4 2.3-1.1z"/></svg>
               macOS<span class="os-sub">Download</span>
             </a>
-            <a class="dl-btn" id="dlWin" href="/dl/yap-windows.ps1" download="yap-windows.ps1">
+            <a class="dl-btn" id="dlWin" href="/dl/yap-windows.bat" download>
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.4 10.4 4.3v7.2H3zM11.3 4.2 21 2.8v8.7h-9.7zM3 12.5h7.4v7.2L3 18.6zM11.3 12.5H21v8.7l-9.7-1.4z"/></svg>
               Windows<span class="os-sub">Download</span>
             </a>
@@ -528,7 +529,7 @@
           </div>
           <ol class="ps-steps">
             <li>Click your computer’s button — the helper downloads with <b>your code already set</b>.</li>
-            <li>Open it (Windows: right-click → <b>Run with PowerShell</b>). A small Yap icon sits in your tray; Mac/Linux open a little window.</li>
+            <li>Open it. Windows tucks a small Yap icon in your tray; Mac/Linux open a little window.</li>
             <li>Send from your phone → it pastes at your cursor (or press <b>⌘/Ctrl-V</b>).</li>
           </ol>
         </div>
@@ -560,15 +561,16 @@
     <section class="panel hidden" id="panelDevices" aria-label="Devices">
       <div class="devices-head hidden" id="devicesHead">
         <h2>Devices <span class="count" id="deviceCount">0</span></h2>
-      </div>
-      <div class="room-bar hidden" id="roomBar">
-        <div class="members" id="members"></div>
+        <span class="spacer"></span>
         <label class="toggle host-only hidden" id="allowWrap" title="Let new devices join this code. Turn off to lock the room to the devices already in it.">
           <input type="checkbox" id="allowOthers" checked />
           <span class="track"><span class="thumb"></span></span>
           <span class="toggle-label">Allow others</span>
         </label>
         <span class="locked-note hidden" id="lockedNote">🔒 Locked by host</span>
+      </div>
+      <div class="room-bar hidden" id="roomBar">
+        <div class="members" id="members"></div>
       </div>
       <div class="devices-empty" id="devicesEmpty">Connect with a code to see the devices on it here.</div>
     </section>
@@ -1042,7 +1044,7 @@
       });
     });
 
-    els.autoCopy.checked = localStorage.getItem(KEYS.autocopy) === '1';
+    els.autoCopy.checked = localStorage.getItem(KEYS.autocopy) !== '0'; // on by default
     els.autoCopy.addEventListener('change', () => localStorage.setItem(KEYS.autocopy, els.autoCopy.checked ? '1' : '0'));
 
     // Invite: share/copy a link that pairs a friend automatically (uses the
@@ -1072,7 +1074,7 @@
       const code = (els.room.value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
       const q = code ? '?code=' + encodeURIComponent(code) : '';
       els.dlMac.href = '/dl/yap-mac.command' + q;
-      els.dlWin.href = '/dl/yap-windows.ps1' + q;
+      els.dlWin.href = '/dl/yap-windows.bat' + q;
       els.dlLinux.href = '/dl/yap-linux.sh' + q;
       if (code) {
         els.psCode.innerHTML = 'Pre-filled for code <b>' + code + '</b> — just open the download.';

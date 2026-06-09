@@ -43,7 +43,7 @@ The helper is **zero-install** (pure built-in tools — `curl` + your system cli
 | OS | Download | Auto-paste |
 |----|----------|------------|
 | **macOS** | `yap-mac.command` — double-click to run | needs one-time Accessibility permission |
-| **Windows** | `yap-windows.ps1` — right-click → **Run with PowerShell**; minimises to a system-tray icon (right-click → Quit) | works out of the box |
+| **Windows** | `yap-windows.bat` — runs **invisibly** with a system-tray icon (right-click → Quit) | works out of the box |
 | **Linux** | `yap-linux.sh` (`bash yap-linux.sh`) | needs `xdotool` (optional) |
 
 Run it once with your pairing code. From then on, **every message you send is instantly on that computer's clipboard** — so you can blindly press **⌘/Ctrl-V** anywhere with full confidence. Where the OS allows, it also auto-pastes into the active window.

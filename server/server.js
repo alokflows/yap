@@ -52,16 +52,35 @@ function sanitizeCode(raw) {
   return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
 }
 
-// The Windows helper ships as a plain, readable PowerShell script — no hidden
-// window, no base64-encoded command, no execution-policy bypass spawned from a
-// .bat. Those are exactly the behaviours Symantec's SONAR flags as a suspicious
-// launch. The user right-clicks it and chooses "Run with PowerShell"; it then
-// minimises to a tray icon and auto-pastes, same as before.
+// Wraps a PowerShell script as a double-clickable .bat that launches it hidden.
+function windowsBat(ps, code) {
+  const enc = Buffer.from(ps, 'utf16le').toString('base64');
+  const codeLine = code
+    ? `REM Your pairing code (${code}) is already baked in — just double-click; no typing.`
+    : `REM You'll be asked once for your pairing code, then it runs invisibly.`;
+  return [
+    '@echo off',
+    'REM Yap helper for Windows. Double-click to run.',
+    'REM',
+    'REM It runs INVISIBLY in the background — there is NO window. A small Yap icon',
+    'REM appears in your system tray (bottom-right, near the clock): right-click it',
+    'REM to change the code or choose "Quit Yap" to stop it.',
+    'REM',
+    codeLine,
+    'REM',
+    'REM From then on, every message you send from the phone is copied to this PC\'s',
+    'REM clipboard and pasted into the active window automatically.',
+    `start "" /b powershell -NoProfile -ExecutionPolicy Bypass -Sta -WindowStyle Hidden -EncodedCommand ${enc}`,
+    'exit /b',
+    '',
+  ].join('\r\n');
+}
+
 const HELPERS = {
-  '/dl/yap-windows.ps1': {
+  '/dl/yap-windows.bat': {
     template: 'yap-windows.ps1',
-    type: 'text/plain; charset=utf-8',
-    build: (tpl, code) => tpl.replace('__CODE__', code),
+    type: 'application/octet-stream',
+    build: (tpl, code) => windowsBat(tpl.replace('__CODE__', code), code),
   },
   '/dl/yap-mac.command': {
     template: 'yap-mac.command',
@@ -301,8 +320,12 @@ function roomState(code) {
     members.push({
       id: m.id, role: m.role, isHost: !!hostDid && m.did === hostDid,
       name: m.device ? m.device.name : 'Device', os: m.device ? m.device.os : 'Device',
+      joinedAt: m.joinedAt,
     });
   }
+  // Host pinned to the top; everyone else ordered by who joined first.
+  members.sort((a, b) => (b.isHost - a.isHost) || (a.joinedAt - b.joinedAt));
+  members.forEach((m) => { delete m.joinedAt; });
   return { phones, desktops, members, open: sess ? sess.open : true, hostDid };
 }
 
