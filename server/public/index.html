@@ -597,7 +597,7 @@
       </div>
       <ol class="ps-steps">
         <li>Download the helper for your computer.</li>
-        <li>Double-click it and <b>type your pairing code</b> when the little box asks.</li>
+        <li>Double-click it and <b>type your pairing code</b> when the window asks.</li>
         <li>Send from your phone → it pastes at your cursor (or press <b>⌘/Ctrl-V</b>).</li>
       </ol>
     </div>
@@ -1168,18 +1168,21 @@
       els.text.value = cur + sep + clean;
     }
 
-    function startListening() {
-      if (!voiceSupported || listening) return;
-      recog = new SpeechRecognition();
-      recog.lang = navigator.language || 'en-US';
-      recog.interimResults = true;
-      recog.continuous = true;
-      // Commit each finalized result exactly once. Some engines (notably Android
-      // Chrome) re-fire results or replay them on auto-restart; tracking how many
-      // finals we've already taken stops the same phrase pasting 5–6 times.
+    // Build a FRESH recognizer for every listening session. Reusing a single
+    // instance is the Android-Chrome "repeat" bug: its results list ACCUMULATES
+    // across restarts, so re-reading from index 0 re-appends every earlier
+    // phrase (the "same sentence 5 times" effect). A new instance starts with an
+    // empty results list, and the per-session `committed` counter then commits
+    // each finalized phrase exactly once.
+    function buildRecognizer() {
+      const r = new SpeechRecognition();
+      r.lang = navigator.language || 'en-US';
+      r.interimResults = true;
+      // Android Chrome handles `continuous` poorly and replays on restart, so
+      // give it clean single-utterance sessions; desktops keep continuous on.
+      r.continuous = !/Android/i.test(navigator.userAgent);
       let committed = 0;
-      recog.onstart = () => { committed = 0; };
-      recog.onresult = (e) => {
+      r.onresult = (e) => {
         let interim = '';
         for (let i = 0; i < e.results.length; i++) {
           const res = e.results[i];
@@ -1192,7 +1195,7 @@
         els.interim.textContent = interim;
         els.interim.classList.toggle('show', !!interim);
       };
-      recog.onerror = (e) => {
+      r.onerror = (e) => {
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
           wantListening = false; toast('Allow microphone access for this site', 'bad');
         } else if (e.error === 'no-speech') {
@@ -1207,15 +1210,21 @@
           toast('Mic error: ' + e.error, 'bad');
         }
       };
-      recog.onend = () => {
+      r.onend = () => {
         listening = false;
         els.interim.textContent = ''; els.interim.classList.remove('show');
-        if (wantListening) {
-          try { recog.start(); listening = true; } catch { setMicState(false); }
-        } else {
-          setMicState(false);
-        }
+        // Restart with a brand-new recognizer (never reuse — that's what carried
+        // results over and caused the repeats). A small gap avoids a tight loop.
+        if (wantListening) setTimeout(() => { if (wantListening && !listening) startListening(); }, 200);
+        else setMicState(false);
       };
+      return r;
+    }
+
+    function startListening() {
+      if (!voiceSupported || listening) return;
+      try { if (recog) recog.abort(); } catch {}
+      recog = buildRecognizer();
       try { recog.start(); listening = true; wantListening = true; setMicState(true); }
       catch { listening = false; setMicState(false); }
     }
