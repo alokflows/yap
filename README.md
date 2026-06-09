@@ -36,14 +36,14 @@ Everything also lands in a **History** tab on both devices, and survives refresh
 
 A browser is sandboxed — it physically can't type into Word, VS Code, or any other app. So Yap ships a **tiny helper** that does.
 
-> In the app, open the **Receive** tab → **Set up** → download the helper for your OS. It auto-highlights your platform.
+> In the app, tap the **paste icon** in the header (next to the light/dark toggle) → download the helper for your OS. It auto-highlights your platform.
 
 The helper is **zero-install** (pure built-in tools — `curl` + your system clipboard, no Python, no dependencies):
 
 | OS | Download | Auto-paste |
 |----|----------|------------|
 | **macOS** | `yap-mac.command` — double-click to run | needs one-time Accessibility permission |
-| **Windows** | `yap-windows.bat` — runs **invisibly** with a system-tray icon (right-click → Quit) | works out of the box |
+| **Windows** | `yap-windows.bat` — double-click, type your code in the little box, keep the window open | works out of the box |
 | **Linux** | `yap-linux.sh` (`bash yap-linux.sh`) | needs `xdotool` (optional) |
 
 Run it once with your pairing code. From then on, **every message you send is instantly on that computer's clipboard** — so you can blindly press **⌘/Ctrl-V** anywhere with full confidence. Where the OS allows, it also auto-pastes into the active window.

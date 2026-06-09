@@ -52,35 +52,33 @@ function sanitizeCode(raw) {
   return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
 }
 
-// Wraps a PowerShell script as a double-clickable .bat that launches it hidden.
-function windowsBat(ps, code) {
-  const enc = Buffer.from(ps, 'utf16le').toString('base64');
-  const codeLine = code
-    ? `REM Your pairing code (${code}) is already baked in — just double-click; no typing.`
-    : `REM You'll be asked once for your pairing code, then it runs invisibly.`;
-  return [
+// Wraps a PowerShell script as a double-clickable .bat that runs it in a plain,
+// VISIBLE window. The PowerShell is appended below as readable text; PowerShell
+// reads this very file, skips the 8-line .bat header, and runs the rest. No
+// hidden window, no system-tray trickery, and no base64-encoded command — all
+// of which can trip antivirus on managed machines. (Reading the file directly
+// also avoids `more`/pipe line-wrapping mangling long PowerShell lines.)
+function windowsBat(ps) {
+  const header = [
     '@echo off',
+    'title Yap - paste at your cursor',
     'REM Yap helper for Windows. Double-click to run.',
-    'REM',
-    'REM It runs INVISIBLY in the background — there is NO window. A small Yap icon',
-    'REM appears in your system tray (bottom-right, near the clock): right-click it',
-    'REM to change the code or choose "Quit Yap" to stop it.',
-    'REM',
-    codeLine,
-    'REM',
-    'REM From then on, every message you send from the phone is copied to this PC\'s',
-    'REM clipboard and pasted into the active window automatically.',
-    `start "" /b powershell -NoProfile -ExecutionPolicy Bypass -Sta -WindowStyle Hidden -EncodedCommand ${enc}`,
+    'REM A small box asks for your pairing code, then this window stays open',
+    'REM and every message you send from your phone pastes at your cursor.',
+    'REM Nothing is hidden or installed. Close this window to stop Yap.',
+    'powershell -NoProfile -ExecutionPolicy Bypass -Sta -Command "Get-Content -LiteralPath \'%~f0\' | Select-Object -Skip 8 | Out-String | Invoke-Expression"',
     'exit /b',
-    '',
-  ].join('\r\n');
+  ];
+  // header is 8 lines (1-8); the PowerShell body begins on line 9, so PowerShell
+  // skips the first 8 lines of this file (-Skip 8) and runs everything after.
+  return header.join('\r\n') + '\r\n' + ps.replace(/\r?\n/g, '\r\n') + '\r\n';
 }
 
 const HELPERS = {
   '/dl/yap-windows.bat': {
     template: 'yap-windows.ps1',
     type: 'application/octet-stream',
-    build: (tpl, code) => windowsBat(tpl.replace('__CODE__', code), code),
+    build: (tpl, code) => windowsBat(tpl.replace('__CODE__', code)),
   },
   '/dl/yap-mac.command': {
     template: 'yap-mac.command',
