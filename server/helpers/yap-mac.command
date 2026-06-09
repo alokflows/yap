@@ -5,9 +5,15 @@
 # front app if you grant Accessibility permission (optional).
 SERVER="https://yap-mkk4.onrender.com"
 
-printf "Enter the pairing code shown in the Yap phone app: "
-read -r CODE
+# The pairing code is baked into this download. If it is missing (you grabbed
+# the generic helper) or invalid, ask once.
+CODE="__CODE__"
 CODE=$(printf '%s' "$CODE" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9')
+if [ ${#CODE} -lt 3 ]; then
+  printf "Enter the pairing code shown in the Yap phone app: "
+  read -r CODE
+  CODE=$(printf '%s' "$CODE" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9')
+fi
 if [ ${#CODE} -lt 3 ]; then echo "That code looks too short. Try again."; exit 1; fi
 
 echo ""

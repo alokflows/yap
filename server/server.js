@@ -17,6 +17,7 @@ import { WebSocketServer } from 'ws';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const HELPERS_DIR = path.join(__dirname, 'helpers');
 const PORT = Number(process.env.PORT) || 8080;
 const HEARTBEAT_MS = 30_000;
 
@@ -29,6 +30,68 @@ const MIME = {
   '.png': 'image/png',
   '.ico': 'image/x-icon',
   '.webmanifest': 'application/manifest+json',
+};
+
+// ---------------------------------------------------------------------------
+// Desktop helper downloads.
+//
+// The helpers live as templates in helpers/ with a __CODE__ placeholder. When
+// the phone is paired we bake the current code straight in, so the download
+// "just works" with no typing. Without a code we serve the generic version,
+// which asks for the code once on first run. One source, two builds.
+// ---------------------------------------------------------------------------
+const helperCache = new Map();
+async function helperTemplate(name) {
+  if (!helperCache.has(name)) {
+    helperCache.set(name, await readFile(path.join(HELPERS_DIR, name), 'utf8'));
+  }
+  return helperCache.get(name);
+}
+
+function sanitizeCode(raw) {
+  return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+}
+
+// Wraps a PowerShell script as a double-clickable .bat that launches it hidden.
+function windowsBat(ps, code) {
+  const enc = Buffer.from(ps, 'utf16le').toString('base64');
+  const codeLine = code
+    ? `REM Your pairing code (${code}) is already baked in — just double-click; no typing.`
+    : `REM You'll be asked once for your pairing code, then it runs invisibly.`;
+  return [
+    '@echo off',
+    'REM Yap helper for Windows. Double-click to run.',
+    'REM',
+    'REM It runs INVISIBLY in the background — there is NO window. A small Yap icon',
+    'REM appears in your system tray (bottom-right, near the clock): right-click it',
+    'REM to change the code or choose "Quit Yap" to stop it.',
+    'REM',
+    codeLine,
+    'REM',
+    'REM From then on, every message you send from the phone is copied to this PC\'s',
+    'REM clipboard and pasted into the active window automatically.',
+    `start "" /b powershell -NoProfile -ExecutionPolicy Bypass -Sta -WindowStyle Hidden -EncodedCommand ${enc}`,
+    'exit /b',
+    '',
+  ].join('\r\n');
+}
+
+const HELPERS = {
+  '/dl/yap-windows.bat': {
+    template: 'yap-windows.ps1',
+    type: 'application/octet-stream',
+    build: (tpl, code) => windowsBat(tpl.replace('__CODE__', code), code),
+  },
+  '/dl/yap-mac.command': {
+    template: 'yap-mac.command',
+    type: 'text/plain; charset=utf-8',
+    build: (tpl, code) => tpl.replace('__CODE__', code),
+  },
+  '/dl/yap-linux.sh': {
+    template: 'yap-linux.sh',
+    type: 'text/plain; charset=utf-8',
+    build: (tpl, code) => tpl.replace('__CODE__', code),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -66,6 +129,23 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', ...headers });
         res.end(JSON.stringify({ messages: msgs.map((m) => ({ id: m.id, text: m.text, t: m.t })) }));
       }
+      return;
+    }
+
+    // Desktop helper downloads, with the pairing code baked in when supplied:
+    // GET /dl/yap-windows.bat?code=ABCDE  -> helper pre-set to that code.
+    const helper = HELPERS[urlPath];
+    if (helper) {
+      const code = sanitizeCode(new URL(req.url, 'http://localhost').searchParams.get('code'));
+      const tpl = await helperTemplate(helper.template);
+      const body = helper.build(tpl, code);
+      const filename = urlPath.slice('/dl/'.length);
+      res.writeHead(200, {
+        'Content-Type': helper.type,
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Cache-Control': 'no-store',
+      });
+      res.end(body);
       return;
     }
 

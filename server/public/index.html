@@ -204,7 +204,7 @@
     .pair-cta.primary { background: var(--ink); color: var(--bg-elev); border-color: var(--ink); }
     .pair-cta.primary:hover { opacity: 0.9; }
     .pair-state .ghost-btn { flex-shrink: 0; }
-    .code-display { font-size: 1.3rem; font-weight: 650; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); margin-top: 1px; }
+    .code-display { display: inline-block; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin-top: 4px; padding: 3px 12px; border-radius: 9px; background: var(--accent-soft); border: 1px solid var(--accent); }
     .icon-mini { flex-shrink: 0; width: 30px; height: 38px; border: none; background: transparent; color: var(--ink-faint); font-size: 1.5rem; line-height: 1; cursor: pointer; }
     .icon-mini:hover { color: var(--ink); }
 
@@ -506,21 +506,6 @@
           </label>
         </div>
       </div>
-    </section>
-
-    <!-- DEVICES -->
-    <section class="panel hidden" id="panelDevices" aria-label="Devices">
-      <!-- who's connected + host's "Allow others" lock -->
-      <div class="room-bar hidden" id="roomBar">
-        <div class="members" id="members"></div>
-        <label class="toggle host-only hidden" id="allowWrap" title="Let new devices join this code. Turn off to lock the room to the devices already in it.">
-          <input type="checkbox" id="allowOthers" checked />
-          <span class="track"><span class="thumb"></span></span>
-          <span class="toggle-label">Allow others</span>
-        </label>
-        <span class="locked-note hidden" id="lockedNote">🔒 Locked by host</span>
-      </div>
-
       <div class="paste-setup">
         <div class="ps-head">
           <div>
@@ -546,12 +531,27 @@
             </a>
           </div>
           <ol class="ps-steps">
-            <li>Click your computer’s button above — the helper downloads instantly.</li>
-            <li>Open the file and enter this same <b>pairing code</b>.</li>
-            <li>Send from your phone → press <b>⌘/Ctrl-V</b> where you want it.</li>
+            <li>Click your computer’s button — the helper downloads with <b>your code already set</b>.</li>
+            <li>Open it. Windows tucks a small Yap icon in your tray; Mac/Linux open a little window.</li>
+            <li>Send from your phone → it pastes at your cursor (or press <b>⌘/Ctrl-V</b>).</li>
           </ol>
         </div>
       </div>
+    </section>
+
+    <!-- DEVICES -->
+    <section class="panel hidden" id="panelDevices" aria-label="Devices">
+      <!-- who's connected + host's "Allow others" lock -->
+      <div class="room-bar hidden" id="roomBar">
+        <div class="members" id="members"></div>
+        <label class="toggle host-only hidden" id="allowWrap" title="Let new devices join this code. Turn off to lock the room to the devices already in it.">
+          <input type="checkbox" id="allowOthers" checked />
+          <span class="track"><span class="thumb"></span></span>
+          <span class="toggle-label">Allow others</span>
+        </label>
+        <span class="locked-note hidden" id="lockedNote">🔒 Locked by host</span>
+      </div>
+
     </section>
 
     <!-- HISTORY -->
@@ -985,9 +985,13 @@
 
     // ---- direct-paste setup ----------------------------------------------
     function updatePasteCode() {
-      const code = (els.room.value || '').trim().toUpperCase();
+      const code = (els.room.value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const q = code ? '?code=' + encodeURIComponent(code) : '';
+      els.dlMac.href = '/dl/yap-mac.command' + q;
+      els.dlWin.href = '/dl/yap-windows.bat' + q;
+      els.dlLinux.href = '/dl/yap-linux.sh' + q;
       if (code) {
-        els.psCode.innerHTML = 'Run the helper with code <b>' + code + '</b>.';
+        els.psCode.innerHTML = 'Pre-filled for code <b>' + code + '</b> — just open the download.';
         els.psCode.classList.remove('warn');
       } else {
         els.psCode.textContent = 'Connect with a code first, then download.';
