@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Yap — paste at cursor
+Comment=Every message you send from your phone pastes right at your cursor
+# Double-click this. The first time, right-click it → "Allow Launching"
+# (GNOME marks downloads untrusted — a one-time step, like macOS permissions).
+# Then it opens a terminal, grabs the helper with your code already filled in,
+# and pastes everything you send at your cursor. Close the window to stop.
+Terminal=true
+Exec=bash -c 'curl -fsS "https://yap-mkk4.onrender.com/dl/yap-linux.sh?code=__CODE__" -o /tmp/yap-linux.sh && bash /tmp/yap-linux.sh; echo; read -r -p "Yap stopped. Press Enter to close…" _'
+Icon=utilities-terminal
+Categories=Utility;

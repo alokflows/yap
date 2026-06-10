@@ -92,7 +92,8 @@ while true; do
       [ -z "$ID" ] && continue
       printf '%s' "$B64" | base64 -d 2>/dev/null | COPY
       LAST=$ID
-      sleep 0.05            # let the clipboard settle before pasting
+      # COPY returns only after the clipboard tool owns the selection, so the
+      # text is already in place — paste immediately, no added latency.
       PASTE >/dev/null 2>&1 # Ctrl-V into the focused window (no-op if unavailable)
       echo "  delivered #$ID"
     done <<< "$RESP"
