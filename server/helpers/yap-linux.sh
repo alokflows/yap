@@ -98,8 +98,22 @@ if [ -z "$DID" ]; then
   mkdir -p "$(dirname "$DID_FILE")" 2>/dev/null && printf '%s' "$DID" > "$DID_FILE" 2>/dev/null
 fi
 
-LAST=$(curl -fsS "$SERVER/poll/$CODE/0/text?did=$DID" 2>/dev/null | tail -1 | cut -f1)
-[ -z "$LAST" ] && LAST=0
+# Baseline high-water mark so we never replay old messages. Retry until the
+# probe truly succeeds: a failed probe must NOT fall back to 0, or the next poll
+# dumps the whole backlog — old messages flooding/pasting at once with their ids
+# scrolling by (the "numbers on repeat"). A genuinely empty room returns 0.
+LAST=""
+tries=0
+until [ -n "$LAST" ]; do
+  if BASE=$(curl -fsS "$SERVER/poll/$CODE/0/text?did=$DID" 2>/dev/null); then
+    LAST=$(printf '%s' "$BASE" | tail -1 | cut -f1)
+    [ -z "$LAST" ] && LAST=0
+  else
+    tries=$((tries + 1))
+    [ "$tries" = 3 ] && echo "  (waiting for the server…)"
+    sleep 0.5
+  fi
+done
 
 # Long-poll: the server returns the instant a message arrives, so latency is the
 # network round-trip, not a poll interval. The short sleep only throttles
