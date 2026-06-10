@@ -527,16 +527,10 @@ wss.on('connection', (ws, req) => {
       if (r.size === 0) {
         rooms.delete(code);
       } else {
-        // If the host's device fully left, hand host to the oldest remaining
-        // device so the "Allow others" control never gets orphaned.
-        const s = sessions.get(code);
-        if (s && s.hostDid && ![...r.values()].some((m) => m.did === s.hostDid)) {
-          // Hand host to the oldest remaining device that has a real device id
-          // (skip id-less helpers/agents so the lock control is never orphaned).
-          let oldest = null;
-          for (const m of r.values()) if (m.did && (!oldest || m.joinedAt < oldest.joinedAt)) oldest = m;
-          s.hostDid = oldest ? oldest.did : null;
-        }
+        // The creator stays host for the life of the code. If they briefly drop
+        // and reconnect (same device id) they are still host. We do NOT hand the
+        // host role to another device on disconnect — host is whoever started
+        // the session, full stop.
         notifyRoom(code);
       }
     }
