@@ -44,13 +44,18 @@ fi
 # PASTE() must send a Ctrl-V to whatever window is focused.
 HAVE_PASTE=""
 PASTE_HINT=""
+PASTE_TOOL=""
 PASTE() { :; }   # default no-op; replaced below if a tool is available
 if [ -n "$IS_WAYLAND" ]; then
-  if   command -v wtype   >/dev/null 2>&1; then PASTE() { wtype -M ctrl v -m ctrl; }; HAVE_PASTE="yes";
-  elif command -v ydotool >/dev/null 2>&1; then PASTE() { ydotool key 29:1 47:1 47:0 29:0; }; HAVE_PASTE="yes";  # ctrl+v
+  # Use "-k v" (the named V key), NOT positional "v". Positional text makes wtype
+  # temporarily remap a keycode to emit that character; with Ctrl held the
+  # compositor then sees Ctrl+<random keycode>, which pastes nothing and can type
+  # garbage digits. "-k v" presses the real V key, so Ctrl+V actually pastes.
+  if   command -v wtype   >/dev/null 2>&1; then PASTE() { wtype -M ctrl -k v -m ctrl; }; HAVE_PASTE="yes"; PASTE_TOOL="wtype";
+  elif command -v ydotool >/dev/null 2>&1; then PASTE() { ydotool key 29:1 47:1 47:0 29:0; }; HAVE_PASTE="yes"; PASTE_TOOL="ydotool";  # ctrl+v
   else PASTE_HINT="wtype"; fi
 else
-  if   command -v xdotool >/dev/null 2>&1; then PASTE() { xdotool key --clearmodifiers ctrl+v; }; HAVE_PASTE="yes";
+  if   command -v xdotool >/dev/null 2>&1; then PASTE() { xdotool key --clearmodifiers ctrl+v; }; HAVE_PASTE="yes"; PASTE_TOOL="xdotool";
   else PASTE_HINT="xdotool"; fi
 fi
 
@@ -75,7 +80,7 @@ if [ ${#CODE} -lt 3 ]; then echo "That code looks too short. Try again."; exit 1
 echo ""
 echo "Connected to code $CODE. Send from your phone."
 if [ -n "$HAVE_PASTE" ]; then
-  echo "Auto-paste is ON — text drops straight at your cursor. Click where you want it."
+  echo "Auto-paste is ON via $PASTE_TOOL — text drops straight at your cursor. Click where you want it."
 else
   echo "Text is copied here instantly — press Ctrl-V to paste."
   if [ -n "$PASTE_HINT" ]; then
