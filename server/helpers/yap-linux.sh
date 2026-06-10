@@ -1,21 +1,60 @@
 #!/bin/bash
-# Yap helper for Linux — run:  bash yap-linux.sh   (or chmod +x and double-click)
-# Every message you send from the phone lands on your clipboard, so you can
-# press Ctrl-V anywhere. Auto-paste works if xdotool is installed (optional).
+# Yap helper for Linux — run:  bash yap-linux.sh
+# Every message you send from the phone lands on your clipboard AND is pasted at
+# your cursor, so it feels like magic — just like the Windows helper.
+#
+# It needs two tiny tools: a clipboard tool and a "type a keystroke" tool.
+# This script auto-detects your desktop (Wayland or X11) and, if anything is
+# missing, prints the exact one-line command to install it. Nothing is hidden
+# and nothing runs without you seeing it.
 SERVER="https://yap-mkk4.onrender.com"
 
-# Pick a clipboard tool.
-if command -v wl-copy >/dev/null 2>&1; then COPY() { wl-copy; }
-elif command -v xclip >/dev/null 2>&1; then COPY() { xclip -selection clipboard; }
-elif command -v xsel  >/dev/null 2>&1; then COPY() { xsel --clipboard --input; }
-else echo "Install a clipboard tool first: xclip (X11) or wl-clipboard (Wayland)."; exit 1; fi
+# --- figure out the package-install command for this distro (for nice hints) --
+installer() {
+  if   command -v apt-get >/dev/null 2>&1; then echo "sudo apt install -y";
+  elif command -v dnf     >/dev/null 2>&1; then echo "sudo dnf install -y";
+  elif command -v pacman  >/dev/null 2>&1; then echo "sudo pacman -S --noconfirm";
+  elif command -v zypper  >/dev/null 2>&1; then echo "sudo zypper install -y";
+  else echo ""; fi
+}
+PKG="$(installer)"
+hint() { # hint <package-name>
+  if [ -n "$PKG" ]; then echo "    $PKG $1"; else echo "    (install '$1' with your package manager)"; fi
+}
 
-# Optional auto-paste.
-PASTE=""
-command -v xdotool >/dev/null 2>&1 && PASTE="yes"
+# --- are we on Wayland or X11? --------------------------------------------------
+# Wayland and X11 need completely different "paste" tools. xdotool ONLY works on
+# X11 — on Wayland it makes the cursor twitch but never actually pastes, which is
+# the classic "it copies but won't paste" problem.
+IS_WAYLAND=""
+if [ -n "$WAYLAND_DISPLAY" ] || [ "$XDG_SESSION_TYPE" = "wayland" ]; then IS_WAYLAND="yes"; fi
 
-# The pairing code is baked into this download. If it is missing (you grabbed
-# the generic helper) or invalid, ask once.
+# --- pick a clipboard tool ------------------------------------------------------
+COPY=""
+if   command -v wl-copy >/dev/null 2>&1; then COPY() { wl-copy; }
+elif command -v xclip   >/dev/null 2>&1; then COPY() { xclip -selection clipboard; }
+elif command -v xsel    >/dev/null 2>&1; then COPY() { xsel --clipboard --input; }
+else
+  echo "Yap needs a clipboard tool. Install one:"
+  if [ -n "$IS_WAYLAND" ]; then hint "wl-clipboard"; else hint "xclip"; fi
+  exit 1
+fi
+
+# --- pick a paste (keystroke) tool ----------------------------------------------
+# PASTE() must send a Ctrl-V to whatever window is focused.
+HAVE_PASTE=""
+PASTE_HINT=""
+PASTE() { :; }   # default no-op; replaced below if a tool is available
+if [ -n "$IS_WAYLAND" ]; then
+  if   command -v wtype   >/dev/null 2>&1; then PASTE() { wtype -M ctrl v -m ctrl; }; HAVE_PASTE="yes";
+  elif command -v ydotool >/dev/null 2>&1; then PASTE() { ydotool key 29:1 47:1 47:0 29:0; }; HAVE_PASTE="yes";  # ctrl+v
+  else PASTE_HINT="wtype"; fi
+else
+  if   command -v xdotool >/dev/null 2>&1; then PASTE() { xdotool key --clearmodifiers ctrl+v; }; HAVE_PASTE="yes";
+  else PASTE_HINT="xdotool"; fi
+fi
+
+# --- the pairing code (baked into the download; asked once if missing) ----------
 CODE="__CODE__"
 CODE=$(printf '%s' "$CODE" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9')
 if [ ${#CODE} -lt 3 ]; then
@@ -26,15 +65,25 @@ fi
 if [ ${#CODE} -lt 3 ]; then echo "That code looks too short. Try again."; exit 1; fi
 
 echo ""
-echo "Connected to code $CODE. Send from your phone — text is copied here instantly."
-echo "Press Ctrl-V to paste. Leave this window open; Ctrl-C to stop."
+echo "Connected to code $CODE. Send from your phone."
+if [ -n "$HAVE_PASTE" ]; then
+  echo "Auto-paste is ON — text drops straight at your cursor. Click where you want it."
+else
+  echo "Text is copied here instantly — press Ctrl-V to paste."
+  if [ -n "$PASTE_HINT" ]; then
+    echo "Want hands-free auto-paste? Install:"
+    hint "$PASTE_HINT"
+    [ -n "$IS_WAYLAND" ] && echo "    (GNOME-on-Wayland may also need 'ydotool' + its daemon; see ydotoold --help)"
+  fi
+fi
+echo "Leave this window open; Ctrl-C to stop."
 echo ""
 
 LAST=$(curl -fsS "$SERVER/poll/$CODE/0/text" 2>/dev/null | tail -1 | cut -f1)
 [ -z "$LAST" ] && LAST=0
 
-# Long-poll: the server returns the instant a message arrives, so latency is
-# the network round-trip, not a poll interval. The short sleep only throttles
+# Long-poll: the server returns the instant a message arrives, so latency is the
+# network round-trip, not a poll interval. The short sleep only throttles
 # reconnects if the server is unreachable.
 while true; do
   RESP=$(curl -fsS --max-time 35 "$SERVER/poll/$CODE/$LAST/text?wait=30" 2>/dev/null)
@@ -43,8 +92,9 @@ while true; do
       [ -z "$ID" ] && continue
       printf '%s' "$B64" | base64 -d 2>/dev/null | COPY
       LAST=$ID
-      [ -n "$PASTE" ] && xdotool key --clearmodifiers ctrl+v >/dev/null 2>&1
-      echo "  copied #$ID  (Ctrl-V to paste)"
+      sleep 0.05            # let the clipboard settle before pasting
+      PASTE >/dev/null 2>&1 # Ctrl-V into the focused window (no-op if unavailable)
+      echo "  delivered #$ID"
     done <<< "$RESP"
   fi
   sleep 0.2
