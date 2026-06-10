@@ -1101,9 +1101,6 @@
     // plain (no baked-in code) — simpler, and nothing runs hidden.
     function updatePasteCode() {
       const code = (els.room.value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-      // The Linux launcher (.desktop) runs hands-free, so we bake the code into
-      // its URL when we have one. The mac/windows helpers ask on first run.
-      $('dlLinux').href = '/dl/yap-linux.desktop' + (code ? '?code=' + code : '');
       if (code) {
         els.psCode.innerHTML = 'Your pairing code is <b>' + code + '</b> — type it when the helper asks.';
         els.psCode.classList.remove('warn');

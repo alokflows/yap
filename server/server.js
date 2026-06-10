@@ -90,12 +90,13 @@ const HELPERS = {
     type: 'text/plain; charset=utf-8',
     build: (tpl, code) => tpl.replace('__CODE__', code),
   },
-  // Double-clickable launcher: opens a terminal and runs the helper above with
-  // the code baked in, so Linux feels like the Windows one-click flow.
+  // Double-clickable launcher: opens a terminal and runs the helper above,
+  // which asks for the pairing code — so Linux feels like the Windows flow and
+  // you can use a different code any time. The code is not baked in.
   '/dl/yap-linux.desktop': {
     template: 'yap-linux.desktop',
     type: 'application/x-desktop; charset=utf-8',
-    build: (tpl, code) => tpl.replace('__CODE__', code),
+    build: (tpl) => tpl,
   },
 };
 
