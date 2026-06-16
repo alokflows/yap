@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content" />
   <meta name="theme-color" content="#faf8f5" id="themeColor" />
   <meta name="description" content="Type or talk on your phone — the words land on your computer, right where your cursor is." />
   <title>Yap</title>
@@ -97,9 +97,15 @@
       overscroll-behavior: none;
       transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
     }
+    /* Pin the app to the area actually visible above the soft keyboard. On iOS,
+     * the keyboard never shrinks dvh/vh, so the composer would sit beneath it;
+     * --app-height (driven by visualViewport) tracks the real visible height,
+     * keeping the textarea + Send bar floating just above the keyboard — like
+     * WhatsApp/Claude. Falls back to 100dvh when visualViewport is unavailable. */
+    html { overflow: hidden; }
     body {
       display: flex; flex-direction: column;
-      min-height: 100dvh;
+      height: var(--app-height, 100dvh);
       padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
     }
     button, input, textarea { font-family: inherit; }
@@ -1278,6 +1284,26 @@
     // Returning paired devices (or an invite link) reconnect straight to the
     // locked code; first-time visitors get the Create / Join choice.
     if (els.room.value) connect(); else { setPairState('start'); setStatus('offline', 'Not paired'); }
+
+    // ---- keyboard-aware viewport -----------------------------------------
+    // Bind the app's height to the *visual* viewport so the soft keyboard never
+    // covers the composer. The keyboard shrinks visualViewport.height (even on
+    // iOS, where it leaves dvh/vh untouched), so --app-height reflows the layout
+    // into the visible strip and the Send bar rides just above the keys. When a
+    // browser scrolls the page to reveal the input, offsetTop nudges us back so
+    // the app stays anchored to the top. No-op on desktop (full height, no keys).
+    const vv = window.visualViewport;
+    if (vv) {
+      const syncViewport = () => {
+        document.documentElement.style.setProperty('--app-height', vv.height + 'px');
+        document.body.style.transform = vv.offsetTop ? `translateY(${vv.offsetTop}px)` : '';
+      };
+      vv.addEventListener('resize', syncViewport);
+      vv.addEventListener('scroll', syncViewport);
+      syncViewport();
+      // After the keyboard animates in, keep the caret's line in view.
+      els.text.addEventListener('focus', () => setTimeout(syncViewport, 300));
+    }
 
     // ---- PWA service worker ----------------------------------------------
     if ('serviceWorker' in navigator) {
