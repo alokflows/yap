@@ -270,8 +270,10 @@
     .locked-note { font-size: 0.74rem; color: var(--ink-faint); font-weight: 500; }
 
     /* ---- Compose (Send) ------------------------------------------------- */
-    /* Composer: nothing but a chat bar resting at the bottom of the panel. */
-    .compose { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+    /* Composer: nothing but a chat bar resting at the bottom of the panel. It
+       must NOT grow — the feed above takes all the slack, so messages sit right
+       above the bar (like WhatsApp), not floating in the middle of the screen. */
+    .compose { flex: 0 0 auto; display: flex; flex-direction: column; justify-content: flex-end; }
     .interim {
       padding: 2px 8px 10px; color: var(--accent); font-size: 1rem; font-style: italic; line-height: 1.4;
       opacity: 0; max-height: 0; overflow: hidden; transition: opacity 160ms var(--ease);
@@ -956,6 +958,26 @@
       } catch { return false; }
     }
 
+    // Auto-copy an incoming message. Browsers refuse clipboard writes while this
+    // tab is unfocused (e.g. the message lands while you're in another window),
+    // so when the write fails we remember the text and copy it the instant the
+    // tab regains focus — so switching to Yap still lands the latest on your
+    // clipboard, ready to paste.
+    let pendingAutoCopy = null;
+    function autoCopyText(text) {
+      copyText(text).then((ok) => {
+        if (ok) { pendingAutoCopy = null; toast('Copied ✓', 'good'); }
+        else pendingAutoCopy = text;
+      });
+    }
+    function flushPendingCopy() {
+      if (!pendingAutoCopy || !els.autoCopy.checked || !document.hasFocus()) return;
+      const text = pendingAutoCopy;
+      copyText(text).then((ok) => { if (ok) { pendingAutoCopy = null; toast('Copied ✓', 'good'); } });
+    }
+    window.addEventListener('focus', flushPendingCopy);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) flushPendingCopy(); });
+
     // ---- ui helpers -------------------------------------------------------
     function setStatus(state, text) { els.status.dataset.state = state; els.statusText.textContent = text; }
     let toastTimer = null;
@@ -1051,7 +1073,7 @@
       const plain = roomKey ? await YC.unseal(roomKey, m.text) : null;
       if (plain == null) return;
       addEntry({ id: 's' + m.id, dir, text: plain, t: m.t || Date.now() });
-      if (doCopy && els.autoCopy.checked) copyText(plain).then((ok) => { if (ok) toast('Copied ✓', 'good'); });
+      if (doCopy && els.autoCopy.checked) autoCopyText(plain);
     }
     function handleMessage(msg) {
       if (msg.type === 'joined' || msg.type === 'presence') {
