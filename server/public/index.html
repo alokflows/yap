@@ -422,26 +422,26 @@
     .ghost-btn:active { transform: scale(0.95); }
     .ghost-btn.danger { color: var(--bad); border-color: oklch(56% 0.18 25 / 0.32); }
     .ghost-btn.danger:hover { border-color: var(--bad); }
-    /* press-and-hold tint for the copy-all action (snappy, reverts on release) */
-    .feed { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
-    .feed-empty { color: var(--ink-faint); font-size: 0.9rem; text-align: center; padding: 48px 20px; }
-    .feed li {
-      background: var(--bg-elev); border: 1px solid var(--hairline); border-radius: var(--radius);
-      padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start;
-      animation: slideIn 220ms var(--ease);
+    .feed { list-style: none; margin: 0; padding: 8px 0 12px; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
+    /* Keep messages pinned to the bottom when there are only a few, without the
+       flex 'justify-content: flex-end' scroll bug — a leading auto margin does it. */
+    .feed::before { content: ''; margin-top: auto; }
+    .feed-empty { color: var(--ink-faint); font-size: 0.9rem; text-align: center; padding: 36px 24px; margin-top: auto; margin-bottom: auto; }
+    /* Chat bubbles: sent on the right (accent), received on the left. */
+    .feed li.bubble {
+      max-width: 82%; padding: 9px 13px; border-radius: 16px; border: 1px solid var(--hairline);
+      background: var(--bg-elev); animation: slideIn 200ms var(--ease);
     }
-    /* Whole row is the copy button now — tap a message to copy it. */
-    .feed li.tappable { cursor: pointer; transition: border-color 90ms var(--ease), transform 90ms var(--ease); }
-    .feed li.tappable:hover { border-color: var(--ink-faint); }
-    .feed li.tappable:active { transform: scale(0.99); border-color: var(--accent); }
-    .feed li .body { flex: 1; min-width: 0; }
-    .feed li .ft { color: var(--ink); font-size: 0.95rem; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
-    .feed li .meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.68rem; color: var(--ink-faint); }
-    .feed li .tag { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
-    .feed li .tag.out { color: var(--accent); }
-    .feed li .tag.in { color: var(--good); }
-    .feed li .tag.failed { color: var(--bad); }
-    @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } }
+    .feed li.bubble.out { align-self: flex-end; background: var(--accent-soft); border-color: var(--accent); border-bottom-right-radius: 5px; }
+    .feed li.bubble.in  { align-self: flex-start; border-bottom-left-radius: 5px; }
+    .feed li.bubble.failed { align-self: flex-end; border-color: var(--bad); border-bottom-right-radius: 5px; }
+    .feed li.tappable { cursor: pointer; transition: transform 90ms var(--ease), filter 90ms var(--ease); }
+    .feed li.tappable:hover { filter: brightness(0.98); }
+    .feed li.tappable:active { transform: scale(0.98); }
+    .feed li .ft { color: var(--ink); font-size: 0.97rem; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
+    .feed li .meta { margin-top: 4px; font-size: 0.66rem; color: var(--ink-faint); }
+    .feed li.out .meta, .feed li.failed .meta { text-align: right; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } }
 
     .toast {
       position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 18px);
@@ -492,8 +492,7 @@
 
   <main>
     <div class="segmented" role="tablist" aria-label="Mode">
-      <button id="tabSend" role="tab" aria-selected="true">Send</button>
-      <button id="tabReceive" role="tab" aria-selected="false">Receive</button>
+      <button id="tabChat" role="tab" aria-selected="true">Chat</button>
       <button id="tabDevices" role="tab" aria-selected="false">Devices</button>
     </div>
 
@@ -531,8 +530,20 @@
       </div>
     </div>
 
-    <!-- SEND — a lean chat bar pinned to the bottom, like a messaging app -->
-    <section class="panel" id="panelSend" aria-label="Send">
+    <!-- CHAT — one screen: the conversation above, the compose bar below,
+         exactly like a real messaging app. Tap any message to copy it. -->
+    <section class="panel" id="panelChat" aria-label="Chat">
+      <div class="session-bar">
+        <h2>Messages <span class="count" id="histCount">0</span></h2>
+        <span class="spacer"></span>
+        <label class="toggle" title="Automatically copy each new message to the clipboard as it arrives">
+          <input type="checkbox" id="autoCopy" />
+          <span class="track"><span class="thumb"></span></span>
+          <span class="toggle-label">Auto-copy</span>
+        </label>
+        <button class="ghost-btn danger" id="clearSession" type="button">Clear</button>
+      </div>
+      <ul class="feed" id="feed" aria-live="polite"></ul>
       <div class="compose">
         <div class="interim" id="interim" aria-hidden="true"></div>
         <div class="chatbar">
@@ -548,21 +559,6 @@
           </button>
         </div>
       </div>
-    </section>
-
-    <!-- RECEIVE — just the history; tap any message to copy it -->
-    <section class="panel hidden" id="panelReceive" aria-label="Receive">
-      <div class="session-bar">
-        <h2>History <span class="count" id="histCount">0</span></h2>
-        <span class="spacer"></span>
-        <label class="toggle" title="Automatically copy each new message to the clipboard as it arrives">
-          <input type="checkbox" id="autoCopy" />
-          <span class="track"><span class="thumb"></span></span>
-          <span class="toggle-label">Auto-copy</span>
-        </label>
-        <button class="ghost-btn danger" id="clearSession" type="button">Clear</button>
-      </div>
-      <ul class="feed" id="feed" aria-live="polite"></ul>
     </section>
 
     <!-- DEVICES -->
@@ -663,8 +659,8 @@
       createBtn: $('createBtn'), joinBtn: $('joinBtn'), joinGo: $('joinGo'), joinBack: $('joinBack'),
       codeDisplay: $('codeDisplay'), changeBtn: $('changeBtn'),
       text: $('text'), interim: $('interim'), mic: $('mic'), send: $('send'), toast: $('toast'),
-      tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabDevices: $('tabDevices'),
-      panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelDevices: $('panelDevices'),
+      tabChat: $('tabChat'), tabDevices: $('tabDevices'),
+      panelChat: $('panelChat'), panelDevices: $('panelDevices'),
       autoCopy: $('autoCopy'),
       pasteBtn: $('pasteBtn'), pasteModal: $('pasteModal'), pasteClose: $('pasteClose'), psCode: $('psCode'),
       dlMac: $('dlMac'), dlWin: $('dlWin'), dlLinux: $('dlLinux'),
@@ -713,7 +709,7 @@
 
     let ws = null, reconnectTimer = null, backoff = 500;
     const outbox = []; // texts awaiting server ack, FIFO
-    let role = localStorage.getItem(KEYS.mode) === 'receive' ? 'desktop' : 'phone';
+    const role = 'phone'; // fixed; the relay only uses it for a cosmetic count
     let peers = 0; // other devices on this code
 
     // ---- session history (per code; persisted; survives disconnect/refresh)
@@ -759,47 +755,44 @@
       catch { return ''; }
     }
 
+    // Stick the conversation to the newest message, like any chat app.
+    function scrollFeedToEnd() {
+      requestAnimationFrame(() => { els.feed.scrollTop = els.feed.scrollHeight; });
+    }
     function renderHistory() {
       els.histCount.textContent = history.length;
       els.feed.innerHTML = '';
       if (!history.length) {
         const empty = document.createElement('div');
         empty.className = 'feed-empty';
-        empty.textContent = 'No messages yet. Everything you send or receive shows up here.';
+        empty.textContent = 'No messages yet. Type below and it lands on the other device — and anything sent to you shows up here.';
         els.feed.appendChild(empty);
         return;
       }
-      for (let i = history.length - 1; i >= 0; i--) {
+      // Oldest first, newest at the bottom — the universal chat order.
+      for (let i = 0; i < history.length; i++) {
         const e = history[i];
-        // The whole row is the copy button now — tap a message to copy it.
+        const failed = e.dir === 'out' && e.delivered === false;
+        // Sent = right-aligned accent bubble; received = left-aligned. Tap to copy.
         const li = document.createElement('li');
-        li.className = 'tappable';
+        li.className = 'bubble tappable ' + (failed ? 'failed' : e.dir);
         li.title = 'Tap to copy';
 
-        const body = document.createElement('div');
-        body.className = 'body';
         const ft = document.createElement('div');
         ft.className = 'ft';
         ft.textContent = e.text;
         const meta = document.createElement('div');
         meta.className = 'meta';
-        const tag = document.createElement('span');
-        const failed = e.dir === 'out' && e.delivered === false;
-        tag.className = 'tag ' + (failed ? 'failed' : e.dir);
-        tag.textContent = e.dir === 'in' ? 'received' : (failed ? 'not delivered' : 'sent');
-        const time = document.createElement('span');
-        time.textContent = fmtTime(e.t);
-        meta.appendChild(tag);
-        meta.appendChild(time);
-        body.appendChild(ft);
-        body.appendChild(meta);
+        meta.textContent = fmtTime(e.t) + (failed ? ' · not delivered' : '');
+        li.appendChild(ft);
+        li.appendChild(meta);
 
-        li.appendChild(body);
         li.addEventListener('click', () => copyText(e.text).then((ok) => {
           toast(ok ? 'Copied ✓' : 'Copy failed', ok ? 'good' : 'bad');
         }));
         els.feed.appendChild(li);
       }
+      scrollFeedToEnd();
     }
 
     // ---- clipboard (works on https + localhost; fallback otherwise) -------
@@ -1067,27 +1060,18 @@
       return true;
     }
 
-    // ---- tabs / role ------------------------------------------------------
-    function setRole(next) {
-      if (role === next) return;
-      role = next;
-      localStorage.setItem(KEYS.mode, next === 'desktop' ? 'receive' : 'send');
-      // Deliberately do NOT reconnect here: every device sends and receives, so
-      // a tab switch must never churn the socket (that caused the "Connecting…"
-      // flicker and brief duplicate/host glitches). The role is just a hint.
-    }
+    // ---- tabs -------------------------------------------------------------
+    // Just two tabs now: the Chat (conversation + compose, one screen) and
+    // Devices. There is no send/receive "role" anymore — every device does both,
+    // so switching tabs never touches the connection.
     function setTab(tab) {
-      const map = { send: els.tabSend, receive: els.tabReceive, devices: els.tabDevices };
+      const map = { chat: els.tabChat, devices: els.tabDevices };
       for (const [k, btn] of Object.entries(map)) btn.setAttribute('aria-selected', String(k === tab));
-      els.panelSend.classList.toggle('hidden', tab !== 'send');
-      els.panelReceive.classList.toggle('hidden', tab !== 'receive');
+      els.panelChat.classList.toggle('hidden', tab !== 'chat');
       els.panelDevices.classList.toggle('hidden', tab !== 'devices');
-      if (tab === 'send') setRole('phone');
-      else if (tab === 'receive') setRole('desktop');
-      // devices keeps the current role + connection
+      if (tab === 'chat') scrollFeedToEnd();
     }
-    els.tabSend.addEventListener('click', () => setTab('send'));
-    els.tabReceive.addEventListener('click', () => setTab('receive'));
+    els.tabChat.addEventListener('click', () => setTab('chat'));
     els.tabDevices.addEventListener('click', () => setTab('devices'));
 
     // ---- pairing: Create / Join, then a locked code ----------------------
@@ -1409,7 +1393,7 @@
 
     // ---- boot -------------------------------------------------------------
     renderHistory();
-    setTab(localStorage.getItem(KEYS.mode) === 'receive' ? 'receive' : 'send');
+    setTab('chat');
     // Returning paired devices (or an invite link) reconnect straight to the
     // locked code; first-time visitors get the Create / Join choice.
     if (els.room.value) connect(); else { setPairState('start'); setStatus('offline', 'Not paired'); }
