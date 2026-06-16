@@ -1,11 +1,12 @@
 // Yap service worker — just an offline app shell. It must never touch the
 // live relay (WebSocket /ws, polling /poll), so it only handles same-origin
 // GETs for the static UI and stays out of the way of everything else.
-const CACHE = 'yap-v7';
+const CACHE = 'yap-v8';
 const SHELL = [
   '/',
   '/index.html',
   '/qrcode.js',
+  '/jsQR.js',
   '/manifest.webmanifest',
   '/icon.svg',
   '/icons/icon-192.png',
