@@ -870,15 +870,14 @@
         time.textContent = fmtTime(e.t);
         meta.appendChild(time);
         if (out) {
-          // Ticks (themed) + how many devices it reached, in light gray.
+          // WhatsApp-style: just time + ticks, so the bubble hugs its text. The
+          // device count stays truthful but lives in the tick's tooltip, not as
+          // wide gray text that stretched the bubble across the screen.
           const tick = document.createElement('span');
           tick.className = 'ticks' + (landed > 0 ? ' done' : '');
           tick.innerHTML = landed > 0 ? TICK_TWO : TICK_ONE;
+          tick.title = landed > 0 ? `Delivered to ${landed} device${landed > 1 ? 's' : ''}` : 'Sent — waiting for a device';
           meta.appendChild(tick);
-          const note = document.createElement('span');
-          note.className = 'landed';
-          note.textContent = landed > 0 ? `${landed} device${landed > 1 ? 's' : ''}` : 'not delivered yet';
-          meta.appendChild(note);
         }
         li.appendChild(ft);
         li.appendChild(meta);
@@ -1602,11 +1601,19 @@
     // into the visible strip and the Send bar rides just above the keys. When a
     // browser scrolls the page to reveal the input, offsetTop nudges us back so
     // the app stays anchored to the top. No-op on desktop (full height, no keys).
+    // This hack only exists to dodge a phone's SOFT KEYBOARD. On a desktop
+    // browser there is no soft keyboard, but visualViewport still fires on
+    // scroll/zoom — and the old code then mis-set the height and shoved the body
+    // with translateY, throwing the header or the input bar off-screen. So run
+    // it ONLY on touch devices, and otherwise let CSS hold a stable 100dvh.
     const vv = window.visualViewport;
-    if (vv) {
+    const isTouch = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
+      || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (vv && isTouch) {
       const syncViewport = () => {
         document.documentElement.style.setProperty('--app-height', vv.height + 'px');
-        document.body.style.transform = vv.offsetTop ? `translateY(${vv.offsetTop}px)` : '';
+        // Only counter-shift when the keyboard actually pushed the page (offsetTop>0).
+        document.body.style.transform = vv.offsetTop > 0 ? `translateY(${vv.offsetTop}px)` : '';
       };
       vv.addEventListener('resize', syncViewport);
       vv.addEventListener('scroll', syncViewport);
