@@ -23,8 +23,8 @@
       --bg-elev:     oklch(100%  0     0);
       --surface:     oklch(96.5% 0.005 75);
       --surface-2:   oklch(94%   0.006 75);
-      --hairline:    oklch(0%    0     0 / 0.10);
-      --hairline-2:  oklch(0%    0     0 / 0.06);
+      --hairline:    oklch(0%    0     0 / 0.13);
+      --hairline-2:  oklch(0%    0     0 / 0.08);
       --ink:         oklch(27%   0.012 60);
       --ink-soft:    oklch(46%   0.014 60);
       --ink-faint:   oklch(62%   0.012 60);
@@ -251,6 +251,15 @@
     .device-promote:hover { color: var(--accent); border-color: var(--accent); }
     .device-promote:active { transform: scale(0.92); }
     .device-promote svg { width: 16px; height: 16px; }
+    /* Destroy code: a quiet, deliberate action parked at the very bottom. */
+    .destroy-code {
+      margin-top: auto; align-self: center; margin-bottom: 4px; padding: 9px 16px;
+      border: 1px solid var(--hairline); background: transparent; color: var(--ink-faint);
+      border-radius: 10px; font-size: 0.82rem; font-weight: 560; cursor: pointer;
+      transition: color 90ms var(--ease), border-color 90ms var(--ease), transform 120ms var(--ease);
+    }
+    .destroy-code:hover { color: var(--bad); border-color: var(--bad); }
+    .destroy-code:active { transform: scale(0.97); }
     .invite { display: inline-flex; align-items: center; gap: 6px; }
     .invite svg { width: 14px; height: 14px; }
     .invite:hover { color: var(--accent); border-color: var(--accent); }
@@ -318,22 +327,6 @@
     .send:disabled { opacity: 0.35; cursor: default; transform: none; background: var(--accent); }
 
     /* ---- Receive -------------------------------------------------------- */
-    .latest {
-      background: var(--bg-elev); border: 1px solid var(--hairline);
-      border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow); margin-bottom: 14px;
-    }
-    .latest-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); font-weight: 600; }
-    .latest-text { margin: 9px 0 16px; font-size: 1.3rem; line-height: 1.45; word-break: break-word; min-height: 1.4em; }
-    .latest-text.empty { color: var(--ink-faint); font-size: 1rem; font-style: italic; }
-    .row { display: flex; align-items: center; gap: 14px; }
-    .copy-btn {
-      padding: 10px 18px; border: none; border-radius: 11px; cursor: pointer;
-      background: var(--ink); color: var(--bg-elev); font-weight: 650; font-size: 0.88rem;
-      transition: transform 120ms var(--ease), background 90ms var(--ease), opacity var(--dur) var(--ease);
-    }
-    .copy-btn:hover { opacity: 0.9; }
-    .copy-btn:active { transform: scale(0.96); background: var(--accent); }
-
     /* Toggle switch (replaces the auto-copy checkbox) --------------------- */
     .toggle { display: inline-flex; align-items: center; gap: 9px; margin-left: auto; cursor: pointer; user-select: none; }
     .toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
@@ -430,9 +423,6 @@
     .ghost-btn.danger { color: var(--bad); border-color: oklch(56% 0.18 25 / 0.32); }
     .ghost-btn.danger:hover { border-color: var(--bad); }
     /* press-and-hold tint for the copy-all action (snappy, reverts on release) */
-    #copyAll { transition: transform 120ms var(--ease), color 90ms var(--ease), border-color 90ms var(--ease); }
-    #copyAll:active { color: var(--accent-strong); border-color: var(--accent); }
-
     .feed { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
     .feed-empty { color: var(--ink-faint); font-size: 0.9rem; text-align: center; padding: 48px 20px; }
     .feed li {
@@ -440,6 +430,10 @@
       padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start;
       animation: slideIn 220ms var(--ease);
     }
+    /* Whole row is the copy button now — tap a message to copy it. */
+    .feed li.tappable { cursor: pointer; transition: border-color 90ms var(--ease), transform 90ms var(--ease); }
+    .feed li.tappable:hover { border-color: var(--ink-faint); }
+    .feed li.tappable:active { transform: scale(0.99); border-color: var(--accent); }
     .feed li .body { flex: 1; min-width: 0; }
     .feed li .ft { color: var(--ink); font-size: 0.95rem; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
     .feed li .meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.68rem; color: var(--ink-faint); }
@@ -447,13 +441,6 @@
     .feed li .tag.out { color: var(--accent); }
     .feed li .tag.in { color: var(--good); }
     .feed li .tag.failed { color: var(--bad); }
-    .feed li button.item-copy {
-      flex-shrink: 0; padding: 6px 11px; border: 1px solid var(--hairline); border-radius: 9px; cursor: pointer;
-      background: var(--surface); color: var(--ink-soft); font-size: 0.72rem; font-weight: 600;
-      transition: transform 120ms var(--ease), color 90ms var(--ease), border-color 90ms var(--ease);
-    }
-    .feed li button.item-copy:hover { color: var(--ink); border-color: var(--ink-faint); }
-    .feed li button.item-copy:active { transform: scale(0.94); color: var(--accent-strong); border-color: var(--accent); }
     @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } }
 
     .toast {
@@ -563,25 +550,16 @@
       </div>
     </section>
 
-    <!-- RECEIVE — cursor box · latest + auto-copy · session history -->
+    <!-- RECEIVE — just the history; tap any message to copy it -->
     <section class="panel hidden" id="panelReceive" aria-label="Receive">
-      <div class="latest">
-        <span class="latest-label">Latest message</span>
-        <p class="latest-text empty" id="latestText">Waiting for messages…</p>
-        <div class="row">
-          <button class="copy-btn" id="copyLatest" type="button">Copy</button>
-          <label class="toggle" title="Copy every new message to the clipboard automatically">
-            <input type="checkbox" id="autoCopy" />
-            <span class="track"><span class="thumb"></span></span>
-            <span class="toggle-label">Auto-copy</span>
-          </label>
-        </div>
-      </div>
-
       <div class="session-bar">
         <h2>History <span class="count" id="histCount">0</span></h2>
         <span class="spacer"></span>
-        <button class="ghost-btn" id="copyAll" type="button">Copy all</button>
+        <label class="toggle" title="Automatically copy each new message to the clipboard as it arrives">
+          <input type="checkbox" id="autoCopy" />
+          <span class="track"><span class="thumb"></span></span>
+          <span class="toggle-label">Auto-copy</span>
+        </label>
         <button class="ghost-btn danger" id="clearSession" type="button">Clear</button>
       </div>
       <ul class="feed" id="feed" aria-live="polite"></ul>
@@ -598,12 +576,12 @@
           <span class="toggle-label">Allow others</span>
         </label>
         <span class="locked-note hidden" id="lockedNote">🔒 Locked by host</span>
-        <button type="button" class="ghost-btn danger host-only hidden" id="destroyBtn" title="Wipe this code: disconnect everyone and free the code right away.">Destroy code</button>
       </div>
       <div class="room-bar hidden" id="roomBar">
         <div class="members" id="members"></div>
       </div>
       <div class="devices-empty" id="devicesEmpty">Connect with a code to see the devices on it here.</div>
+      <button type="button" class="destroy-code host-only hidden" id="destroyBtn" title="Wipe this code: disconnect everyone and free the code right away.">Destroy code</button>
     </section>
   </main>
 
@@ -687,10 +665,10 @@
       text: $('text'), interim: $('interim'), mic: $('mic'), send: $('send'), toast: $('toast'),
       tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabDevices: $('tabDevices'),
       panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelDevices: $('panelDevices'),
-      latestText: $('latestText'), copyLatest: $('copyLatest'), autoCopy: $('autoCopy'),
+      autoCopy: $('autoCopy'),
       pasteBtn: $('pasteBtn'), pasteModal: $('pasteModal'), pasteClose: $('pasteClose'), psCode: $('psCode'),
       dlMac: $('dlMac'), dlWin: $('dlWin'), dlLinux: $('dlLinux'),
-      feed: $('feed'), histCount: $('histCount'), copyAll: $('copyAll'), clearSession: $('clearSession'),
+      feed: $('feed'), histCount: $('histCount'), clearSession: $('clearSession'),
       roomBar: $('roomBar'), members: $('members'), allowWrap: $('allowWrap'), allowOthers: $('allowOthers'), lockedNote: $('lockedNote'), inviteBtn: $('inviteBtn'),
       qrBtn: $('qrBtn'), qrModal: $('qrModal'), qrClose: $('qrClose'), qrImg: $('qrImg'), qrCodeLabel: $('qrCodeLabel'),
       scanBtn: $('scanBtn'), scanModal: $('scanModal'), scanClose: $('scanClose'), scanVideo: $('scanVideo'), scanHint: $('scanHint'),
@@ -760,9 +738,6 @@
       history = code ? loadHistory(code) : [];
       seenIds = new Set(history.map((e) => e.id).filter(Boolean));
       renderHistory();
-      const last = history[history.length - 1];
-      if (last) showLatest(last.text);
-      else { els.latestText.textContent = 'Waiting for messages…'; els.latestText.classList.add('empty'); }
     }
     let idSeq = Date.now();
     function addEntry(entry) {
@@ -796,7 +771,10 @@
       }
       for (let i = history.length - 1; i >= 0; i--) {
         const e = history[i];
+        // The whole row is the copy button now — tap a message to copy it.
         const li = document.createElement('li');
+        li.className = 'tappable';
+        li.title = 'Tap to copy';
 
         const body = document.createElement('div');
         body.className = 'body';
@@ -816,15 +794,10 @@
         body.appendChild(ft);
         body.appendChild(meta);
 
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'item-copy';
-        copyBtn.textContent = 'Copy';
-        copyBtn.addEventListener('click', () => copyText(e.text).then((ok) => {
+        li.appendChild(body);
+        li.addEventListener('click', () => copyText(e.text).then((ok) => {
           toast(ok ? 'Copied ✓' : 'Copy failed', ok ? 'good' : 'bad');
         }));
-
-        li.appendChild(body);
-        li.appendChild(copyBtn);
         els.feed.appendChild(li);
       }
     }
@@ -925,10 +898,6 @@
       if (!m || !m.text) return;
       addEntry({ id: 's' + m.id, dir, text: m.text, t: m.t || Date.now(), delivered });
     }
-    function showLatest(text) {
-      els.latestText.textContent = text;
-      els.latestText.classList.remove('empty');
-    }
     function handleMessage(msg) {
       if (msg.type === 'joined' || msg.type === 'presence') {
         if (msg.id) myId = msg.id;
@@ -939,11 +908,8 @@
         refreshStatusLabel();
       } else if (msg.type === 'history') {
         (msg.messages || []).forEach((m) => ingest(m, 'in'));
-        const last = history[history.length - 1];
-        if (last) showLatest(last.text);
       } else if (msg.type === 'text') {
         ingest(msg, 'in');
-        showLatest(msg.text);
         if (els.autoCopy.checked) copyText(msg.text).then((ok) => { if (ok) toast('Copied ✓', 'good'); });
       } else if (msg.type === 'ack') {
         const text = outbox.shift();
@@ -952,7 +918,6 @@
         toast(n > 0 ? `Sent ✓ · landed on ${n} device${n > 1 ? 's' : ''}` : 'Saved — shows when someone joins', n > 0 ? 'good' : '');
       } else if (msg.type === 'cleared') {
         history = []; seenIds.clear(); saveHistory(); renderHistory();
-        els.latestText.textContent = 'Waiting for messages…'; els.latestText.classList.add('empty');
         toast('Session cleared');
       } else if (msg.type === 'kicked') {
         // Host removed us: stop reconnecting, drop the code, go back Home.
@@ -1104,7 +1069,9 @@
       if (role === next) return;
       role = next;
       localStorage.setItem(KEYS.mode, next === 'desktop' ? 'receive' : 'send');
-      if (els.room.value) connect(); // reconnect with the new role
+      // Deliberately do NOT reconnect here: every device sends and receives, so
+      // a tab switch must never churn the socket (that caused the "Connecting…"
+      // flicker and brief duplicate/host glitches). The role is just a hint.
     }
     function setTab(tab) {
       const map = { send: els.tabSend, receive: els.tabReceive, devices: els.tabDevices };
@@ -1239,14 +1206,6 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitText(); }
     });
 
-    els.copyLatest.addEventListener('click', () => {
-      const t = els.latestText.classList.contains('empty') ? '' : els.latestText.textContent;
-      if (!t) { toast('Nothing to copy', 'bad'); return; }
-      copyText(t).then((ok) => {
-        toast(ok ? 'Copied ✓' : 'Copy failed', ok ? 'good' : 'bad');
-      });
-    });
-
     els.autoCopy.checked = localStorage.getItem(KEYS.autocopy) !== '0'; // on by default
     els.autoCopy.addEventListener('change', () => localStorage.setItem(KEYS.autocopy, els.autoCopy.checked ? '1' : '0'));
 
@@ -1343,20 +1302,10 @@
       if (btn) btn.classList.add('primary');
     })();
 
-    els.copyAll.addEventListener('click', () => {
-      if (!history.length) { toast('History is empty', 'bad'); return; }
-      const all = history.map((e) => e.text).join('\n');
-      copyText(all).then((ok) => {
-        toast(ok ? 'Copied all ✓' : 'Copy failed', ok ? 'good' : 'bad');
-      });
-    });
-
     els.clearSession.addEventListener('click', () => {
       if (!history.length) return;
       if (!confirm('Clear this session for everyone on this code?')) return;
       history = []; seenIds.clear(); saveHistory(); renderHistory();
-      els.latestText.textContent = 'Waiting for messages…';
-      els.latestText.classList.add('empty');
       if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'clear' }));
       toast('Session cleared');
     });

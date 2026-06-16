@@ -420,6 +420,18 @@ wss.on('connection', (ws, req) => {
   ws.connId = 'c' + (++connSeq);
 
   const room = getRoom(code);
+  // One live connection per device id. A reconnect (tab background, network
+  // blip, role change) used to leave the old socket lingering until the next
+  // heartbeat — so the SAME device showed twice, both flagged host. Evict any
+  // existing socket for this did before adding the new one.
+  if (did) {
+    for (const [peer, meta] of [...room]) {
+      if (meta.did === did) {
+        room.delete(peer);
+        try { peer.close(); } catch { /* already closing */ }
+      }
+    }
+  }
   room.set(ws, { role, did, id: ws.connId, joinedAt: Date.now(), device: parseDevice(req.headers['user-agent']) });
   console.log(`[ws] ${role} joined room ${code}`);
 
