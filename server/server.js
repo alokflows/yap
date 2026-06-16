@@ -52,6 +52,13 @@ function sanitizeCode(raw) {
   return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
 }
 
+// Hashed rooms are base64url (SHA-256 of the pairing code) — longer and
+// mixed-case, with '-' and '_'. Accept those (plus legacy short codes) and
+// clamp the length. The relay routes on this and never sees the raw code.
+function sanitizeRoom(raw) {
+  return String(raw || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+}
+
 // Wraps a PowerShell script as a double-clickable .bat that runs it in a plain,
 // VISIBLE window. The PowerShell is appended below as readable text; PowerShell
 // reads this very file, skips the 8-line .bat header, and runs the rest. No
@@ -119,7 +126,7 @@ const server = http.createServer(async (req, res) => {
     // Add ?wait=<sec> to long-poll: the server holds the request open and
     // returns the instant a new message arrives (or empty on timeout), so
     // delivery is bounded by the network, not a fixed poll interval.
-    const pollMatch = urlPath.match(/^\/poll\/([A-Za-z0-9]{3,12})\/(\d+)(\/text)?$/);
+    const pollMatch = urlPath.match(/^\/poll\/([A-Za-z0-9_-]{3,64})\/(\d+)(\/text)?$/);
     if (pollMatch) {
       const code = pollMatch[1];
       const after = Number(pollMatch[2]) || 0;
@@ -181,7 +188,7 @@ const server = http.createServer(async (req, res) => {
     // which would hand back index.html — the helper then "pastes" the page's
     // own HTML/CSS line by line. Return empty, and log it so it's visible.
     if (urlPath.startsWith('/poll/')) {
-      console.warn(`poll: rejected malformed request "${urlPath}" (code must be 3-12 chars [A-Za-z0-9])`);
+      console.warn(`poll: rejected malformed request "${urlPath}" (room must be 3-64 chars [A-Za-z0-9_-])`);
       res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
       res.end('');
       return;
@@ -199,6 +206,19 @@ const server = http.createServer(async (req, res) => {
         'Content-Type': helper.type,
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Cache-Control': 'no-store',
+      });
+      res.end(body);
+      return;
+    }
+
+    // Serve the shared E2E crypto core (the single source of truth lives in
+    // packages/core) to the web app as an ES module. The exact same code runs
+    // in the browser and in Node, which is what lets the relay stay blind.
+    if (urlPath === '/core/crypto.mjs') {
+      const body = await readFile(path.join(__dirname, '..', 'packages', 'core', 'crypto.mjs'));
+      res.writeHead(200, {
+        'Content-Type': 'text/javascript; charset=utf-8',
+        'Cache-Control': 'no-cache',
       });
       res.end(body);
       return;
@@ -242,8 +262,11 @@ const server = http.createServer(async (req, res) => {
 // ---------------------------------------------------------------------------
 const rooms = new Map();
 
-const MAX_TEXT_LENGTH = 1_000_000; // ~150k words — effectively no limit for dictation
-const ROOM_CODE_RE = /^[A-Za-z0-9]{3,12}$/;
+// Ciphertext is base64url and ~1.4× the plaintext, and the relay now only ever
+// holds opaque sealed blobs, so raise the cap to keep the same effective limit.
+const MAX_TEXT_LENGTH = 2_000_000; // ~150k words of plaintext, after encryption overhead
+// Match a hashed room (base64url of SHA-256, ~43 chars) as well as legacy codes.
+const ROOM_CODE_RE = /^[A-Za-z0-9_-]{3,64}$/;
 
 // ---------------------------------------------------------------------------
 // Session store (temporary "notes by code"). In-memory only — no database,
@@ -387,12 +410,12 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 
 wss.on('connection', (ws, req) => {
   const params = new URL(req.url, 'http://localhost').searchParams;
-  const code = (params.get('room') || '').trim();
+  const code = sanitizeRoom(params.get('room'));
   const role = params.get('role') === 'desktop' ? 'desktop' : 'phone';
   const did = sanitizeDid(params.get('did'));
 
   if (!ROOM_CODE_RE.test(code)) {
-    send(ws, { type: 'error', message: 'Invalid room code. Use 3-12 letters/numbers.' });
+    send(ws, { type: 'error', message: 'Invalid room.' });
     ws.close();
     return;
   }

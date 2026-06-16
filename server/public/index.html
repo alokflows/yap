@@ -493,7 +493,9 @@
       <h1>Yap</h1>
     </div>
     <div class="header-actions">
-      <button class="icon-btn" id="pasteBtn" type="button" aria-label="Paste straight to your cursor" title="Paste straight to your cursor">
+      <!-- Helper downloads speak the OLD plaintext protocol, so they break under
+           E2E encryption. Hidden until the Tauri desktop app replaces them. -->
+      <button class="icon-btn hidden" id="pasteBtn" type="button" aria-label="Paste straight to your cursor" title="Paste straight to your cursor">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M9 4H7a2 2 0 0 0-2 2v3"/><path d="M5 14v4a2 2 0 0 0 2 2h3"/>
           <rect x="8" y="2" width="8" height="4" rx="1"/>
@@ -686,6 +688,15 @@
        is built right here in the browser, even fully offline. -->
   <script src="/qrcode.js"></script>
 
+  <!-- Shared end-to-end crypto core, loaded as an ES module and handed to the
+       classic inline script below. The relay only ever sees a hash of the code
+       and sealed blobs — never the raw code, never plaintext. -->
+  <script type="module">
+    import * as YapCrypto from '/core/crypto.mjs';
+    window.YapCrypto = YapCrypto;
+    window.dispatchEvent(new Event('yapcrypto'));
+  </script>
+
   <script>
     const $ = (id) => document.getElementById(id);
     const els = {
@@ -722,6 +733,26 @@
     }
     let myId = null;        // this connection's server-assigned id
     let lockedOut = false;  // host refused this device; don't auto-reconnect
+
+    // ---- E2E crypto: the relay is a blind pipe ----------------------------
+    // We route on roomHash (a hash of the pairing code) and send only sealed
+    // blobs, so the relay never sees the raw code or any plaintext. The crypto
+    // core is the ES module loaded above; gate on it before opening a socket.
+    let YC = window.YapCrypto || null;
+    let cryptoReadyResolve;
+    const cryptoReady = new Promise((res) => { cryptoReadyResolve = res; });
+    if (YC) cryptoReadyResolve(YC);
+    else window.addEventListener('yapcrypto', () => { YC = window.YapCrypto; cryptoReadyResolve(YC); }, { once: true });
+
+    let roomKey = null;   // AES-GCM key derived from the pairing code
+    let roomHash = null;  // what the relay routes on (never the raw code)
+    let keyedCode = null; // the code roomKey/roomHash were derived from
+    async function deriveRoom(code) {
+      await cryptoReady;
+      if (keyedCode === code && roomKey && roomHash) return;
+      const [k, h] = await Promise.all([YC.keyFromCode(code), YC.roomFromCode(code)]);
+      roomKey = k; roomHash = h; keyedCode = code;
+    }
 
     // ---- theme ------------------------------------------------------------
     const THEME_LIGHT = '#faf8f5', THEME_DARK = '#201e1b';
@@ -949,12 +980,13 @@
     const urlRoom = new URLSearchParams(location.search).get('room');
     els.room.value = (urlRoom || localStorage.getItem(KEYS.room) || '').toUpperCase();
 
+    // `room` here is the HASHED room (roomHash) — the relay never sees the code.
     function wsUrl(room) {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
       return `${proto}//${location.host}/ws?role=${role}&room=${encodeURIComponent(room)}&did=${encodeURIComponent(myDid)}`;
     }
 
-    function connect(force) {
+    async function connect(force) {
       const room = els.room.value.trim().toUpperCase();
       if (!/^[A-Z0-9]{3,12}$/.test(room)) { toast('Enter a 3–12 char code', 'bad'); return; }
       lockedOut = false; // a deliberate connect attempt clears any prior refusal
@@ -969,7 +1001,13 @@
       clearTimeout(reconnectTimer);
       closeCurrent();
       setStatus('waiting', 'Connecting…');
-      const sock = new WebSocket(wsUrl(room));
+      // Derive the key + hashed room BEFORE opening the socket, so the relay only
+      // ever receives the hash (never the raw code) and we can seal/unseal text.
+      try { await deriveRoom(room); }
+      catch { setStatus('offline', 'Encryption failed'); toast('Could not start encryption', 'bad'); return; }
+      // The user may have changed the code while we were deriving — bail if so.
+      if ((els.room.value || '').trim().toUpperCase() !== room) return;
+      const sock = new WebSocket(wsUrl(roomHash));
       sock._room = room; sock._role = role; sock._intentional = false;
       ws = sock;
 
@@ -1003,6 +1041,18 @@
       if (!m || !m.text) return;
       addEntry({ id: 's' + m.id, dir, text: m.text, t: m.t || Date.now(), delivered });
     }
+    // Incoming text + replayed history are SEALED blobs. Decrypt before showing;
+    // if a blob can't be opened (wrong key / tampered), skip it rather than
+    // render garbage. Our own sent messages echo from `outbox` in plaintext, so
+    // they never pass through here.
+    async function ingestSealed(m, dir, doCopy) {
+      if (!m || !m.text) return;
+      if (!roomKey) { try { await deriveRoom(keyedCode || (els.room.value || '').trim().toUpperCase()); } catch {} }
+      const plain = roomKey ? await YC.unseal(roomKey, m.text) : null;
+      if (plain == null) return;
+      addEntry({ id: 's' + m.id, dir, text: plain, t: m.t || Date.now() });
+      if (doCopy && els.autoCopy.checked) copyText(plain).then((ok) => { if (ok) toast('Copied ✓', 'good'); });
+    }
     function handleMessage(msg) {
       if (msg.type === 'joined' || msg.type === 'presence') {
         if (msg.id) myId = msg.id;
@@ -1013,10 +1063,10 @@
         refreshStatusLabel();
         if (!history.length) renderHistory(); // keep the empty-chat hint in sync
       } else if (msg.type === 'history') {
-        (msg.messages || []).forEach((m) => ingest(m, 'in'));
+        // Decrypt sequentially so replayed messages keep their original order.
+        (async () => { for (const m of (msg.messages || [])) await ingestSealed(m, 'in', false); })();
       } else if (msg.type === 'text') {
-        ingest(msg, 'in');
-        if (els.autoCopy.checked) copyText(msg.text).then((ok) => { if (ok) toast('Copied ✓', 'good'); });
+        ingestSealed(msg, 'in', true);
       } else if (msg.type === 'ack') {
         const text = outbox.shift();
         const n = msg.delivered | 0;
@@ -1161,16 +1211,21 @@
       // Non-host devices get a quiet "locked" note when others can't join.
       els.lockedNote.classList.toggle('hidden', iAmHost || msg.open !== false);
     }
-    function doSend(text) {
+    async function doSend(text) {
       const value = (text ?? '').trim();
       if (!value) return false;
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!ws || ws.readyState !== WebSocket.OPEN || !roomKey) {
         addEntry({ dir: 'out', text: value, delivered: 0 });
         toast('Saved to History (offline)', 'bad');
         return false;
       }
+      // Seal with the room key — the relay only ever forwards this opaque blob.
+      // The plaintext stays local in `outbox` and is echoed when the ack lands.
+      let blob;
+      try { blob = await YC.seal(roomKey, value); }
+      catch { toast('Could not encrypt — not sent', 'bad'); return false; }
       outbox.push(value);
-      ws.send(JSON.stringify({ type: 'text', text: value }));
+      ws.send(JSON.stringify({ type: 'text', text: blob }));
       return true;
     }
 
@@ -1298,7 +1353,13 @@
       els.text.classList.toggle('scroll', els.text.scrollHeight > els.text.clientHeight + 1);
     }
     function submitText() {
-      if (doSend(els.text.value)) { els.text.value = ''; refreshComposer(); }
+      const v = els.text.value;
+      if (!v.trim()) return;
+      // When we're live, clear the box immediately (messenger feel) and seal/send
+      // in the background. When offline, keep the text and let doSend save it.
+      const live = ws && ws.readyState === WebSocket.OPEN && roomKey;
+      if (live) { els.text.value = ''; refreshComposer(); }
+      doSend(v);
     }
     els.text.addEventListener('input', refreshComposer);
     els.send.addEventListener('click', submitText);

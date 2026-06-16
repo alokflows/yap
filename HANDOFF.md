@@ -140,6 +140,20 @@ checked against the exact same math):
 ## 6. Work left to do — in order. Verify each before moving on.
 
 ### Task A — Wire E2E encryption into web + relay  *(do FIRST; deploys live)*
+**✅ DONE — built on branch `claude/encrypt-web-relay`, verified end-to-end in
+Node against the real relay (two clients, both directions, history replay, wrong
+code isolated, relay logs show only the hashed room). Not yet merged to `master`
+— awaiting the owner's go-ahead for the live deploy + a real two-device test.**
+What shipped: `/core/crypto.mjs` served from `packages/core` (single source);
+web app derives `keyFromCode`/`roomFromCode` on pairing, routes the WS on the
+hash, seals outgoing / unseals incoming (skips undecryptable), keeps the local
+echo in plaintext; relay gained `sanitizeRoom()` (base64url ≤64) on WS + `/poll`,
+raised `MAX_TEXT_LENGTH` to 2M, serves the core module; SW bumped to `yap-v9`
+with the module in the shell; helper-download UI hidden. **Rollout note:** a new
+client (hashed room) and an old still-open client (raw-code room) land in
+different rooms until the old one reloads — a transient during deploy, self-heals
+on refresh.
+
 Goal: relay becomes blind. Build on `packages/core/crypto.mjs`.
 
 **Web (`server/public/index.html`):**
