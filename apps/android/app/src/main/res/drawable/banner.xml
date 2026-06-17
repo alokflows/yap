@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android TV launcher banner (xhdpi 320x180). Paper field with the clay bubble. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path
+        android:fillColor="#FAF3ED"
+        android:pathData="M0,0 H320 V180 H0 Z" />
+    <path
+        android:fillColor="#C4673F"
+        android:pathData="M132,58 L120,98 L156,72 Z" />
+    <path
+        android:fillColor="#C4673F"
+        android:pathData="M138,52 H182 A22,22 0 0 1 204,74 V90 A22,22 0 0 1 182,112 H138 A22,22 0 0 1 116,90 V74 A22,22 0 0 1 138,52 Z" />
+</vector>

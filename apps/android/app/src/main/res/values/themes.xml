@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A bare framework theme; the real look comes from Compose (RippleTheme).
+         NoActionBar + the paper window background avoid a flash before Compose
+         draws. minSdk 26 guarantees the Material theme is present. -->
+    <style name="Theme.Ripple" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/paper</item>
+        <item name="android:statusBarColor">@color/paper</item>
+        <item name="android:navigationBarColor">@color/paper</item>
+    </style>
+</resources>
