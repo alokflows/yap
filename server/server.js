@@ -1,4 +1,4 @@
-// Yap relay.
+// Ripple relay.
 //
 // One tiny process does two jobs:
 //   1. Serves the phone web app (public/index.html) over HTTP.
@@ -95,11 +95,11 @@ function sanitizeRoom(raw) {
 function windowsBat(ps) {
   const header = [
     '@echo off',
-    'title Yap - paste at your cursor',
-    'REM Yap helper for Windows. Double-click to run.',
+    'title Ripple - paste at your cursor',
+    'REM Ripple helper for Windows. Double-click to run.',
     'REM A small box asks for your pairing code, then this window stays open',
     'REM and every message you send from your phone pastes at your cursor.',
-    'REM Nothing is hidden or installed. Close this window to stop Yap.',
+    'REM Nothing is hidden or installed. Close this window to stop Ripple.',
     'powershell -NoProfile -ExecutionPolicy Bypass -Sta -Command "Get-Content -LiteralPath \'%~f0\' | Select-Object -Skip 8 | Out-String | Invoke-Expression"',
     'exit /b',
   ];
@@ -109,26 +109,26 @@ function windowsBat(ps) {
 }
 
 const HELPERS = {
-  '/dl/yap-windows.bat': {
-    template: 'yap-windows.ps1',
+  '/dl/ripple-windows.bat': {
+    template: 'ripple-windows.ps1',
     type: 'application/octet-stream',
     build: (tpl, code) => windowsBat(tpl.replace('__CODE__', code)),
   },
-  '/dl/yap-mac.command': {
-    template: 'yap-mac.command',
+  '/dl/ripple-mac.command': {
+    template: 'ripple-mac.command',
     type: 'text/plain; charset=utf-8',
     build: (tpl, code) => tpl.replace('__CODE__', code),
   },
-  '/dl/yap-linux.sh': {
-    template: 'yap-linux.sh',
+  '/dl/ripple-linux.sh': {
+    template: 'ripple-linux.sh',
     type: 'text/plain; charset=utf-8',
     build: (tpl, code) => tpl.replace('__CODE__', code),
   },
   // Double-clickable launcher: opens a terminal and runs the helper above,
   // which asks for the pairing code — so Linux feels like the Windows flow and
   // you can use a different code any time. The code is not baked in.
-  '/dl/yap-linux.desktop': {
-    template: 'yap-linux.desktop',
+  '/dl/ripple-linux.desktop': {
+    template: 'ripple-linux.desktop',
     type: 'application/x-desktop; charset=utf-8',
     build: (tpl) => tpl,
   },
@@ -227,7 +227,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Desktop helper downloads, with the pairing code baked in when supplied:
-    // GET /dl/yap-windows.bat?code=ABCDE  -> helper pre-set to that code.
+    // GET /dl/ripple-windows.bat?code=ABCDE  -> helper pre-set to that code.
     const helper = HELPERS[urlPath];
     if (helper) {
       const code = sanitizeCode(new URL(req.url, 'http://localhost').searchParams.get('code'));
@@ -690,6 +690,6 @@ const heartbeat = setInterval(() => {
 wss.on('close', () => clearInterval(heartbeat));
 
 server.listen(PORT, () => {
-  console.log(`Yap relay listening on http://localhost:${PORT}`);
+  console.log(`Ripple relay listening on http://localhost:${PORT}`);
   console.log(`WebSocket endpoint:        ws://localhost:${PORT}/ws`);
 });

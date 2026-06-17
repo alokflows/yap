@@ -1,4 +1,4 @@
-//! Yap Desktop — joins a room as a normal peer (hashed room + sealed text) and
+//! Ripple Desktop — joins a room as a normal peer (hashed room + sealed text) and
 //! types received messages at the OS cursor. Same crypto as the web app, so the
 //! relay stays blind.
 
@@ -62,7 +62,7 @@ struct StatusPayload {
 }
 fn emit_status(app: &AppHandle, state: &str, devices: usize, error: Option<String>) {
     let _ = app.emit(
-        "yap://status",
+        "ripple://status",
         StatusPayload { state: state.into(), devices, error },
     );
 }
@@ -74,7 +74,7 @@ struct MsgPayload {
     delivered: u32,
 }
 fn emit_message(app: &AppHandle, dir: &str, text: String, delivered: u32) {
-    let _ = app.emit("yap://message", MsgPayload { dir: dir.into(), text, delivered });
+    let _ = app.emit("ripple://message", MsgPayload { dir: dir.into(), text, delivered });
 }
 
 #[derive(Clone, Serialize)]
@@ -97,7 +97,7 @@ fn emit_devices(app: &AppHandle, v: &serde_json::Value, my_id: &Option<String>) 
             });
         }
     }
-    let _ = app.emit("yap://devices", devices);
+    let _ = app.emit("ripple://devices", devices);
 }
 
 // A stable per-device id, persisted under the app's config dir.
@@ -205,7 +205,7 @@ async fn run_connection(
             cmd = cmd_rx.recv() => {
                 match cmd {
                     Some(RelayCmd::SendText(text)) => {
-                        let blob = yap_core::seal(key, &text);
+                        let blob = ripple_core::seal(key, &text);
                         let payload = serde_json::json!({ "type": "text", "text": blob }).to_string();
                         if write.send(Message::Text(payload)).await.is_err() {
                             return ConnEnd::Dropped;
@@ -253,7 +253,7 @@ fn handle_incoming(
             if let Some(arr) = v.get("messages").and_then(|m| m.as_array()) {
                 for m in arr {
                     if let Some(blob) = m.get("text").and_then(|t| t.as_str()) {
-                        if let Some(plain) = yap_core::unseal(key, blob) {
+                        if let Some(plain) = ripple_core::unseal(key, blob) {
                             emit_message(app, "in", plain, 0);
                         }
                     }
@@ -263,7 +263,7 @@ fn handle_incoming(
         }
         "text" => {
             if let Some(blob) = v.get("text").and_then(|t| t.as_str()) {
-                match yap_core::unseal(key, blob) {
+                match ripple_core::unseal(key, blob) {
                     Some(plain) => {
                         emit_message(app, "in", plain.clone(), 0);
                         let s = *settings.lock().unwrap();
@@ -278,7 +278,7 @@ fn handle_incoming(
                     // Don't fail silently: a message we can't decrypt almost always
                     // means the other device is on a different code.
                     None => {
-                        let _ = app.emit("yap://notice", "Couldn't read a message — check both devices use the same code.".to_string());
+                        let _ = app.emit("ripple://notice", "Couldn't read a message — check both devices use the same code.".to_string());
                     }
                 }
             }
@@ -315,12 +315,12 @@ fn stop_relay(state: &State<AppState>) {
 #[tauri::command]
 fn connect(code: String, app: AppHandle, state: State<AppState>) -> Result<(), String> {
     stop_relay(&state);
-    let code = yap_core::normalize_code(&code);
+    let code = ripple_core::normalize_code(&code);
     if code.len() < 3 {
         return Err("Enter a pairing code (3+ characters).".into());
     }
-    let key = yap_core::key_from_code(&code);
-    let room = yap_core::room_from_code(&code);
+    let key = ripple_core::key_from_code(&code);
+    let room = ripple_core::room_from_code(&code);
     let did = get_or_create_did(&app);
 
     // macOS needs a one-time Accessibility grant to type into other apps.
@@ -418,14 +418,14 @@ pub fn run() {
             copy_to_clipboard, get_settings, undo
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Yap Desktop");
+        .expect("error while running Ripple Desktop");
 }
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     use tauri::menu::{Menu, MenuItem};
     use tauri::tray::TrayIconBuilder;
 
-    let show = MenuItem::with_id(app, "show", "Show Yap", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show Ripple", true, None::<&str>)?;
     let disconnect_i = MenuItem::with_id(app, "disconnect", "Disconnect", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &disconnect_i, &quit])?;

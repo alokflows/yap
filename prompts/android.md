@@ -1,13 +1,13 @@
-# 03 — Yap Keyboard (Android + TV)
+# 03 — Ripple Keyboard (Android + TV)
 
-Goal: a standalone keyboard that pairs with Yap and commits received text **at
+Goal: a standalone keyboard that pairs with Ripple and commits received text **at
 the cursor in any app**. Built by forking FlorisBoard.
 
 ## Do
 
 1. **Fork base:** vendor FlorisBoard (Apache-2.0, Kotlin) into `apps/android/`.
    Keep its IME engine, layouts, theming, emoji, clipboard. Preserve `NOTICE`.
-2. **Yap panel:** add a toolbar key that opens a Yap panel (same pattern as the
+2. **Ripple panel:** add a toolbar key that opens a Ripple panel (same pattern as the
    clipboard/emoji panels) with three tabs:
    - **Connect** — create/enter code; show connection + peer list.
    - **Live** — incoming text; commit at cursor via
@@ -30,7 +30,7 @@ the cursor in any app**. Built by forking FlorisBoard.
 
 ## Verify
 
-- Set Yap Keyboard as input method; pair with the web app; speak on the phone →
+- Set Ripple Keyboard as input method; pair with the web app; speak on the phone →
   text lands at the cursor in a notes app and on a TV search box. Peer list shows
   the keyboard as `deviceType: keyboard`.
 </content>

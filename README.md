@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🗣️ Yap
+# 🗣️ Ripple
 
 **Talk or type on one device → the words land at the cursor on another.**
 Phone → computer. Phone → TV. Computer → phone. Any device, both directions.
@@ -36,10 +36,10 @@ of Wi-Fi: text flows **both ways**, between phones, computers, and TVs.
 
 ## What we're building
 
-- **Yap Keyboard** (Android + TV, then iOS) — a full standalone keyboard with a
-  built-in Yap panel: pair, see history, and have spoken/typed text appear at
+- **Ripple Keyboard** (Android + TV, then iOS) — a full standalone keyboard with a
+  built-in Ripple panel: pair, see history, and have spoken/typed text appear at
   your cursor in *any* app. Forked from the open-source FlorisBoard.
-- **Yap Desktop** — one small Tauri app replacing the helper scripts (and fixing
+- **Ripple Desktop** — one small Tauri app replacing the helper scripts (and fixing
   Linux paste).
 - **End-to-end encryption** — the relay only ever sees scrambled text.
 
@@ -63,7 +63,7 @@ prompts/    build instructions an AI agent executes
 
 ## License
 
-[Apache-2.0](LICENSE). Yap Keyboard builds on
+[Apache-2.0](LICENSE). Ripple Keyboard builds on
 [FlorisBoard](https://github.com/florisboard/florisboard) (also Apache-2.0) —
 see [NOTICE](NOTICE).
 </content>

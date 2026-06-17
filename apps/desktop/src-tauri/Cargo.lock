@@ -3266,6 +3266,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "ripple-core"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "base64 0.22.1",
+ "pbkdf2",
+ "sha2",
+]
+
+[[package]]
+name = "ripple-desktop"
+version = "0.1.0"
+dependencies = [
+ "arboard",
+ "ashpd",
+ "enigo",
+ "futures-util",
+ "macos-accessibility-client",
+ "ripple-core",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-opener",
+ "tokio",
+ "tokio-tungstenite",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5801,37 +5832,6 @@ name = "xkeysym"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
-
-[[package]]
-name = "yap-core"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "base64 0.22.1",
- "pbkdf2",
- "sha2",
-]
-
-[[package]]
-name = "yap-desktop"
-version = "0.1.0"
-dependencies = [
- "arboard",
- "ashpd",
- "enigo",
- "futures-util",
- "macos-accessibility-client",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-opener",
- "tokio",
- "tokio-tungstenite",
- "url",
- "uuid",
- "yap-core",
-]
 
 [[package]]
 name = "yoke"

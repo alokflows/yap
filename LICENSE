@@ -1,6 +1,6 @@
-Yap is licensed under the Apache License, Version 2.0.
+Ripple is licensed under the Apache License, Version 2.0.
 
-Copyright 2026 The Yap Authors
+Copyright 2026 The Ripple Authors
 
 The full, canonical license text is intentionally not inlined here. To complete
 this file, fetch the official text and paste it below this line:
@@ -10,6 +10,6 @@ this file, fetch the official text and paste it below this line:
 (An AI build agent: replace this entire file with that canonical text on first
 setup. See prompts/00-START-HERE.md.)
 
-Yap Keyboard (apps/android) derives from FlorisBoard, also Apache-2.0 — see
+Ripple Keyboard (apps/android) derives from FlorisBoard, also Apache-2.0 — see
 NOTICE for attribution.
 </content>

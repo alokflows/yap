@@ -1,6 +1,6 @@
-# Setting up Yap
+# Setting up Ripple
 
-Three ways to use Yap, from easiest to most hands-on. Pick the one that fits you.
+Three ways to use Ripple, from easiest to most hands-on. Pick the one that fits you.
 
 ---
 
@@ -12,7 +12,7 @@ Three ways to use Yap, from easiest to most hands-on. Pick the one that fits you
 3. Type or talk on one — the words appear on the other. Done.
 
 > Want the text to land *at your cursor* in any app on your computer? Grab the
-> desktop helper from the **paste icon** in the app header. (The new **Yap
+> desktop helper from the **paste icon** in the app header. (The new **Ripple
 > Desktop** app — see section C — will replace this and also fix Linux.)
 
 ---
@@ -37,7 +37,7 @@ One-click deploy to a free tier (Render):
 
 ### Custom setup (your own accounts)
 
-Everything Yap uses is swappable and free-tier friendly:
+Everything Ripple uses is swappable and free-tier friendly:
 
 | Piece | Default | Make it yours |
 |-------|---------|---------------|
@@ -66,7 +66,7 @@ cd apps/android
 - **Sideload to a TV:** put the APK on a USB stick or use a file-send app, then
   open it on the TV with "install unknown apps" enabled.
 
-### Desktop (Windows / Mac / Linux) — Yap Desktop
+### Desktop (Windows / Mac / Linux) — Ripple Desktop
 
 ```bash
 cd apps/desktop

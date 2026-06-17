@@ -1,4 +1,4 @@
-# Yap helper for Windows — pastes straight at your cursor.
+# Ripple helper for Windows — pastes straight at your cursor.
 #
 # Runs in a plain, visible window. Nothing is hidden and nothing is installed.
 # It asks for your pairing code, then every message you send from your phone is
@@ -11,7 +11,7 @@ $server = 'https://yap-mkk4.onrender.com'
 # The download leaves this blank, so we ask for the code here.
 $code = ('__CODE__'.ToUpper() -replace '[^A-Z0-9]', '')
 while ($code.Length -lt 3) {
-  $entry = Read-Host 'Enter the pairing code shown in the Yap app'
+  $entry = Read-Host 'Enter the pairing code shown in the Ripple app'
   $code = ($entry.ToUpper() -replace '[^A-Z0-9]', '')
 }
 

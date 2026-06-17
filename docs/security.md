@@ -1,4 +1,4 @@
-# Yap — Security & Privacy Model
+# Ripple — Security & Privacy Model
 
 Written to be honest, including where the limits are. Privacy is the product.
 
@@ -58,7 +58,7 @@ Mitigations, in order of strength:
    code yields a strong session key with no offline-guessing weakness. This is
    the proper end state.
 
-We document this rather than hide it: with the default short code Yap is private
+We document this rather than hide it: with the default short code Ripple is private
 against the network and casual snooping; for adversary-grade privacy, use a long
 passphrase (and, once shipped, the PAKE handshake).
 

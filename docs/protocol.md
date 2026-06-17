@@ -1,4 +1,4 @@
-# Yap Protocol (v1)
+# Ripple Protocol (v1)
 
 The contract every client and the relay obey. **Change this file before changing
 behavior.** All messages are JSON over a WebSocket to the relay at `/ws`.

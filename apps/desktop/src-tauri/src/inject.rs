@@ -51,7 +51,7 @@ pub fn spawn(app: AppHandle) -> Sender<InjectCmd> {
 // Surface a short message to the UI (toast). Used when paste can't reach the
 // cursor (e.g. Wayland without permission/tools) so the app never looks dead.
 fn notice(app: &AppHandle, text: &str) {
-    let _ = app.emit("yap://notice", text.to_string());
+    let _ = app.emit("ripple://notice", text.to_string());
 }
 
 fn run(rx: Receiver<InjectCmd>, app: AppHandle) {
@@ -126,7 +126,7 @@ fn run(rx: Receiver<InjectCmd>, app: AppHandle) {
                     if let Some(cb) = clipboard.as_mut() {
                         let _ = cb.set_text(text);
                     }
-                    notice(&app, "To paste at the cursor on Wayland, allow Yap to control the keyboard when prompted (or install wtype/ydotool). Text copied — press Ctrl+V.");
+                    notice(&app, "To paste at the cursor on Wayland, allow Ripple to control the keyboard when prompted (or install wtype/ydotool). Text copied — press Ctrl+V.");
                     continue;
                 }
 

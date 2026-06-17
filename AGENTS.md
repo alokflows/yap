@@ -4,7 +4,7 @@ Dense on purpose. Humans: read `README.md` + `docs/`.
 
 ## TL;DR
 
-Yap = encrypted, symmetric, cursor-targeting text relay across devices.
+Ripple = encrypted, symmetric, cursor-targeting text relay across devices.
 Relay = blind WS router. Clients = web, android-keyboard, desktop(tauri), ios.
 Every client is a **peer** (sends + receives). No host. Consent is per-receiver.
 
@@ -15,7 +15,7 @@ server/            Node relay + web app (LIVE, deployed; rootDir for Render). Do
   server.js        WS router (/ws), /poll, /healthz
   public/index.html  single-file web app
 packages/core/     TS reference impl of the protocol (crypto, framing, history). Source of truth for clients.
-apps/android/      forked FlorisBoard (Kotlin) + Yap panel IME. Target phone + TV (leanback).
+apps/android/      forked FlorisBoard (Kotlin) + Ripple panel IME. Target phone + TV (leanback).
 apps/desktop/      Tauri (Rust+TS). Replaces helper scripts. Injects keystrokes at cursor.
 apps/ios/          Swift keyboard ext + container app. BUILD LAST.
 docs/              architecture.md · protocol.md · security.md  <-- contracts
@@ -35,7 +35,7 @@ prompts/           ordered build instructions. START at prompts/00-START-HERE.md
 
 1. `prompts/relay-upgrade.md`   — device types, peers, heartbeat, sealed frames
 2. `prompts/web-app.md`         — adopt symmetric model + peer list + E2E
-3. `prompts/android.md`         — fork FlorisBoard, Yap panel, commit-at-cursor, signed APK
+3. `prompts/android.md`         — fork FlorisBoard, Ripple panel, commit-at-cursor, signed APK
 4. `prompts/desktop.md`         — Tauri client + OS keystroke injection
 5. iOS — when human says go
 

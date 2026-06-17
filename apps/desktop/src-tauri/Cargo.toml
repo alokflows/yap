@@ -1,12 +1,12 @@
 [package]
-name = "yap-desktop"
+name = "ripple-desktop"
 version = "0.1.0"
-description = "Yap Desktop — receive text from your phone and have it typed at your cursor"
-authors = ["Yap"]
+description = "Ripple Desktop — receive text from your phone and have it typed at your cursor"
+authors = ["Ripple"]
 edition = "2021"
 
 [lib]
-name = "yap_desktop_lib"
+name = "ripple_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -19,7 +19,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # Shared E2E crypto — the exact same math as the web app (verified vectors).
-yap-core = { path = "../../../packages/core-rs" }
+ripple-core = { path = "../../../packages/core-rs" }
 
 # Relay client.
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }

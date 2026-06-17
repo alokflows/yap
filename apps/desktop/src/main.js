@@ -190,17 +190,17 @@ function renderDevices(list) {
 }
 
 // ---- events from Rust ----
-listen("yap://status", (e) => {
+listen("ripple://status", (e) => {
   const { state, devices, error } = e.payload;
   if (state === "connected") setStatus("connected", devices > 0 ? `${devices} device${devices > 1 ? "s" : ""}` : "Waiting for your phone…");
   else if (state === "connecting") setStatus("connecting", "Connecting…");
   else { setStatus("offline", error || (currentCode ? "Reconnecting…" : "Not connected")); if (error) toast(error, "bad"); }
 });
-listen("yap://message", (e) => addMessage(e.payload.dir, e.payload.text, e.payload.delivered || 0));
-listen("yap://devices", (e) => renderDevices(e.payload || []));
+listen("ripple://message", (e) => addMessage(e.payload.dir, e.payload.text, e.payload.delivered || 0));
+listen("ripple://devices", (e) => renderDevices(e.payload || []));
 // Injector couldn't type at the cursor (e.g. Wayland with no typing tool) —
 // the text is on the clipboard instead; let the user know.
-listen("yap://notice", (e) => toast(String(e.payload), "bad"));
+listen("ripple://notice", (e) => toast(String(e.payload), "bad"));
 
 // ---- init ----
 window.addEventListener("DOMContentLoaded", async () => {

@@ -1,6 +1,6 @@
-# Yap — Handoff (read me, then continue)
+# Ripple — Handoff (read me, then continue)
 
-**You are Claude Code picking up the Yap project.** The owner is non-technical,
+**You are Claude Code picking up the Ripple project.** The owner is non-technical,
 usually on their phone, often away from the computer (which they leave on for
 you). Their standing instruction: *"read the handoff and continue."* They want
 maximum autonomy — do everything you can without making them intervene, and only
@@ -26,7 +26,7 @@ session can pick up cold.
 
 ---
 
-## 1. What Yap is
+## 1. What Ripple is
 
 Share a short **pairing code** between devices; anything you type or dictate on
 one device appears on the others (phone ↔ computer ↔ TV), both directions, no
@@ -34,7 +34,7 @@ accounts. On the **desktop app** received text is **typed at the OS cursor**.
 Live web app: **https://yap-mkk4.onrender.com**
 
 **Repo:** `alokflows/yap` (public, GitHub). Local working copy:
-`/Users/megha/Documents/Yap`. `gh` is authed as `alokflows`.
+`/Users/megha/Documents/Ripple`. `gh` is authed as `alokflows`.
 
 ---
 
@@ -111,7 +111,7 @@ Rust: `src-tauri/src/lib.rs` (relay client over `tokio-tungstenite` +
 `src-tauri/src/inject.rs` (keystroke/clipboard/undo). Crypto from `packages/core-rs`.
 Verified: `cargo test` (vectors) + a live sealed round-trip through the production
 relay using the desktop's exact stack. macOS `.app` installed at
-`/Applications/Yap.app`.
+`/Applications/Ripple.app`.
 
 ### Cross-platform installers (CI) ✅
 `.github/workflows/desktop-release.yml` (tauri-action) builds macOS/Windows/Linux
@@ -186,16 +186,16 @@ Rust toolchain is installed via rustup; source it in each shell:
 The owner leaves the laptop on and wants you to test/build for them. The Claude
 CLI runs inside **Terminal.app**, so macOS TCC permissions go to **Terminal**:
 - **Accessibility → Terminal** (drive windows via `osascript`/System Events) and
-  **→ Yap** (so Yap can type at the cursor).
+  **→ Ripple** (so Ripple can type at the cursor).
 - **Screen Recording → Terminal** for `screencapture` (needs a Terminal relaunch
   to take effect — which would kill the session, so it applies next session).
-- **Automation → Terminal** → allow System Events / Yap.
+- **Automation → Terminal** → allow System Events / Ripple.
 
 If you have these, you can launch the app, bring it to front / full-screen,
 `screencapture` it, and `SendUserFile` the screenshot to the owner's phone, then
 minimize. Without Screen Recording, `screencapture` fails with "could not create
 image from display" — then just report in text. The macOS app is at
-`/Applications/Yap.app`.
+`/Applications/Ripple.app`.
 
 ---
 
@@ -211,7 +211,7 @@ image from display" — then just report in text. The macOS app is at
   RemoteDesktop portal** (`ashpd`) — clipboard + portal-driven Ctrl+V; asks once
   for keyboard permission and persists the restore token (saved under the app
   config dir as `portal_restore_token`). Falls back to `wtype`/`ydotool`, then to
-  clipboard + a "press Ctrl+V" toast (new `yap://notice` event). Verified with
+  clipboard + a "press Ctrl+V" toast (new `ripple://notice` event). Verified with
   `cargo check` (compiles; ashpd `remote_desktop`+`screencast` features, tokio);
   **not run on a real Wayland box** — the portal dialog + actual keysym injection
   still need a real-machine test. Portal code lives in `inject.rs::portal`.

@@ -1,4 +1,4 @@
-# Yap — Architecture
+# Ripple — Architecture
 
 This is the textbook. If a software engineer asks "how does it work?", everything
 they need is here.
@@ -7,7 +7,7 @@ they need is here.
 
 ## 1. The idea
 
-Yap moves **text** between your devices and drops it **at the cursor** — the
+Ripple moves **text** between your devices and drops it **at the cursor** — the
 exact spot where you'd be typing. One device is your input (a keyboard, a mic);
 another is where the words appear. Crucially, **every device is symmetric**:
 each can both send and receive. There is no "host" and no one-way street.
@@ -19,7 +19,7 @@ Three kinds of parts:
 1. **Relay** — a tiny, stateless server. It is a *blind pipe*: it groups
    connections by room and forwards sealed (encrypted) messages between them. It
    cannot read what flows through it, and it stores nothing on disk.
-2. **Clients (peers)** — the web app, the Yap Keyboard (Android/TV/iOS), and Yap
+2. **Clients (peers)** — the web app, the Ripple Keyboard (Android/TV/iOS), and Ripple
    Desktop. Each one connects to the relay, joins a room, and can send and
    receive text.
 3. **The protocol** — the rules every client and the relay agree on. This is the
@@ -71,15 +71,15 @@ and iOS implement faithful *mirrors* of the same spec in their native languages.
 | Relay | Node + `ws` | `server/` | Deployed on Render. In-memory rooms, 12h idle evict. **Never renamed** (Render points here). |
 | Web app | One HTML file | `server/public/` | No build step. Mobile-first. |
 | Core | TypeScript, WebCrypto | `packages/core/` | Framing, sealing, history, key derivation. |
-| Yap Keyboard | Kotlin, `InputMethodService` | `apps/android/` | Fork of FlorisBoard + a Yap panel. Phone + TV. |
-| Yap Desktop | Rust + Tauri | `apps/desktop/` | Tray app; injects keystrokes at the OS cursor. |
-| Yap iOS | Swift, keyboard extension | `apps/ios/` | Built last; needs Full Access for network. |
+| Ripple Keyboard | Kotlin, `InputMethodService` | `apps/android/` | Fork of FlorisBoard + a Ripple panel. Phone + TV. |
+| Ripple Desktop | Rust + Tauri | `apps/desktop/` | Tray app; injects keystrokes at the OS cursor. |
+| Ripple iOS | Swift, keyboard extension | `apps/ios/` | Built last; needs Full Access for network. |
 
-## 7. The Yap Keyboard (the flagship)
+## 7. The Ripple Keyboard (the flagship)
 
 Forked from **FlorisBoard** (Apache-2.0, Kotlin) — a mature, private,
 fully-featured keyboard. We keep its engine (layouts, theming, emoji, clipboard)
-and add **one new surface**: the **Yap panel**, reached from a key on the toolbar
+and add **one new surface**: the **Ripple panel**, reached from a key on the toolbar
 row, exactly like its clipboard/emoji panels. The panel has:
 
 - **Connect** — create or enter a code; shows live connection + peers.
@@ -90,7 +90,7 @@ Because a keyboard (IME) is the one component Android *allows* to type into any
 app, this is how "paste at the cursor" works on Android — and the same APK runs
 on **Android TV** (leanback). The phone is the mic; the TV's keyboard receives.
 
-## 8. Yap Desktop (replacing the scripts)
+## 8. Ripple Desktop (replacing the scripts)
 
 One Tauri app for Windows/Mac/Linux. It joins as a normal peer and injects
 keystrokes at the OS cursor:

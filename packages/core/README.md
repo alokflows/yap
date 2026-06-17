@@ -1,7 +1,7 @@
-# @yap/core
+# @ripple/core
 
-The **reference implementation** of the Yap protocol, in TypeScript. Shared by
-the web app, the relay, and Yap Desktop. Android (Kotlin) and iOS (Swift)
+The **reference implementation** of the Ripple protocol, in TypeScript. Shared by
+the web app, the relay, and Ripple Desktop. Android (Kotlin) and iOS (Swift)
 implement faithful mirrors of the same spec.
 
 > The contract lives in [`/docs/protocol.md`](../../docs/protocol.md) and

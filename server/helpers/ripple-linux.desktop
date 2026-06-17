@@ -1,14 +1,14 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Yap — paste at cursor
+Name=Ripple — paste at cursor
 Comment=Every message you send from your phone pastes right at your cursor
 # Double-click this. The first time, right-click it → "Allow Launching"
 # (GNOME marks downloads untrusted — a one-time step, like macOS permissions).
 # Then it opens a terminal and asks for your pairing code — type the one shown
-# in the Yap app (you can use a different code any time). From then on every
+# in the Ripple app (you can use a different code any time). From then on every
 # message you send pastes at your cursor. Close the window to stop.
 Terminal=true
-Exec=bash -c 'curl -fsS "https://yap-mkk4.onrender.com/dl/yap-linux.sh" -o /tmp/yap-linux.sh && bash /tmp/yap-linux.sh; echo; read -r -p "Yap stopped. Press Enter to close…" _'
+Exec=bash -c 'curl -fsS "https://yap-mkk4.onrender.com/dl/ripple-linux.sh" -o /tmp/ripple-linux.sh && bash /tmp/ripple-linux.sh; echo; read -r -p "Ripple stopped. Press Enter to close…" _'
 Icon=utilities-terminal
 Categories=Utility;

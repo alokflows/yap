@@ -1,4 +1,4 @@
-//! Yap end-to-end crypto — the Rust mirror of `packages/core/crypto.mjs`.
+//! Ripple end-to-end crypto — the Rust mirror of `packages/core/crypto.mjs`.
 //!
 //! The shared secret is the pairing code, nothing else. The relay stays a BLIND
 //! pipe: clients route on a HASH of the code and exchange only sealed blobs, so
