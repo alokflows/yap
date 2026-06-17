@@ -12,12 +12,12 @@ No accounts. No API keys. Share a code, that's it — and the relay never sees y
 <br />
 
 [![Open the web app](https://img.shields.io/badge/▶_Open_the_web_app-c4673f?style=for-the-badge)](https://yap-mkk4.onrender.com)
-[![Download](https://img.shields.io/badge/⤓_Download_apps-2b2018?style=for-the-badge)](https://github.com/alokflows/yap/releases)
+[![Download](https://img.shields.io/badge/⤓_Download_apps-2b2018?style=for-the-badge)](https://github.com/alokflows/ripple/releases)
 
 <br />
 
-![Android build](https://github.com/alokflows/yap/actions/workflows/android-build.yml/badge.svg)
-![Desktop build](https://github.com/alokflows/yap/actions/workflows/desktop-release.yml/badge.svg)
+![Android build](https://github.com/alokflows/ripple/actions/workflows/android-build.yml/badge.svg)
+![Desktop build](https://github.com/alokflows/ripple/actions/workflows/desktop-release.yml/badge.svg)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Platforms](https://img.shields.io/badge/platforms-Web_·_macOS_·_Windows_·_Linux_·_Android_·_TV-faf3ed?labelColor=c4673f)
 
@@ -51,8 +51,8 @@ there are no accounts, logs, or API keys.
 | Platform | Get it | Notes |
 | --- | --- | --- |
 | **Web** | [Open the app ↗](https://yap-mkk4.onrender.com) | Works on any device with a browser. Installable as a PWA. |
-| **Android + TV** | [Latest APK ↗](https://github.com/alokflows/yap/releases/tag/android-dev) | A full keyboard *and* app in one. Sideload, then enable the Ripple keyboard. |
-| **macOS · Windows · Linux** | [Desktop builds ↗](https://github.com/alokflows/yap/releases/tag/desktop-dev) | `.dmg` · `.msi`/`.exe` · `.AppImage`/`.deb`/`.rpm`. Types at your cursor. |
+| **Android + TV** | [Latest APK ↗](https://github.com/alokflows/ripple/releases/tag/android-dev) | A full keyboard *and* app in one. Sideload, then enable the Ripple keyboard. |
+| **macOS · Windows · Linux** | [Desktop builds ↗](https://github.com/alokflows/ripple/releases/tag/desktop-dev) | `.dmg` · `.msi`/`.exe` · `.AppImage`/`.deb`/`.rpm`. Types at your cursor. |
 | **iOS** | _coming later_ | Keyboard extension + app. |
 
 > Android & desktop are early builds — see **[Status](#status)**. The web app is the

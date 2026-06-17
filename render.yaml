@@ -1,5 +1,5 @@
 # One-click deploy to Render (free tier, native WebSocket support).
-# Deploy: https://render.com/deploy?repo=https://github.com/alokflows/yap
+# Deploy: https://render.com/deploy?repo=https://github.com/alokflows/ripple
 services:
   - type: web
     name: yap

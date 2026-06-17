@@ -33,7 +33,7 @@ from its own origin; the native apps take it in their pairing screen).
 
 One-click deploy to a free tier (Render):
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/alokflows/yap)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/alokflows/ripple)
 
 ### Custom setup (your own accounts)
 

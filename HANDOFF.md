@@ -44,7 +44,7 @@ text is **typed/committed at the cursor in any app**. Every device is a full
 
 - **Live web app / relay:** `https://yap-mkk4.onrender.com` (hostname keeps the
   old "yap" slug on purpose — see §3 / §7; it's invisible to users).
-- **Repo:** `alokflows/yap` on GitHub (public). The *product* is renamed to
+- **Repo:** `alokflows/ripple` on GitHub (public). The *product* is renamed to
   Ripple everywhere; the **repo slug is still `yap`** until the owner renames it
   in GitHub Settings (old links auto-redirect after). `gh` authed as `alokflows`.
 - Local working copy on the owner's Mac: `~/Documents/Ripple` (path may vary).
