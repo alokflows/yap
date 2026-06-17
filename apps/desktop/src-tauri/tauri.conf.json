@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Yap",
+  "productName": "Ripple",
   "version": "0.1.0",
-  "identifier": "com.alokflows.yap",
+  "identifier": "com.alokflows.ripple",
   "build": {
     "frontendDist": "../src"
   },
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Yap",
+        "title": "Ripple",
         "width": 440,
         "height": 680,
         "minWidth": 360,

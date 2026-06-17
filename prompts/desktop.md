@@ -1,4 +1,4 @@
-# 04 — Yap Desktop (Tauri)
+# 04 — Ripple Desktop (Tauri)
 
 Goal: one small cross-platform app that replaces the helper scripts, joins as a
 normal peer, and injects received text **at the OS cursor** — including Linux.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Yap desktop agent.
+"""Ripple desktop agent.
 
-Connects to the Yap relay with a pairing code, then pastes any text
+Connects to the Ripple relay with a pairing code, then pastes any text
 the phone sends at the current cursor position. This is the piece that makes
 "speak on phone -> appears where my cursor is" actually happen.
 
@@ -161,7 +161,7 @@ def run(server: str, room: str, mode: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Yap desktop agent")
+    parser = argparse.ArgumentParser(description="Ripple desktop agent")
     parser.add_argument(
         "--server",
         default=os.environ.get("YAP_SERVER", "wss://yap-mkk4.onrender.com"),
@@ -169,13 +169,13 @@ def main() -> None:
     )
     parser.add_argument(
         "--room",
-        default=os.environ.get("YAP_ROOM"),
+        default=os.environ.get("RIPPLE_ROOM"),
         help="Pairing code shared with the phone (3-12 letters/numbers).",
     )
     parser.add_argument(
         "--mode",
         choices=["paste", "type"],
-        default=os.environ.get("YAP_MODE", "paste"),
+        default=os.environ.get("RIPPLE_MODE", "paste"),
         help="How to insert text at the cursor (default: paste).",
     )
     args = parser.parse_args()

@@ -6,7 +6,7 @@
 
 ## Your mission
 
-Build Yap into a multi-platform, end-to-end-encrypted, **symmetric** text-relay
+Build Ripple into a multi-platform, end-to-end-encrypted, **symmetric** text-relay
 system whose defining trick is dropping text **at the cursor** on any device.
 
 ## Read first (in this order, do not skip)
@@ -43,8 +43,8 @@ system whose defining trick is dropping text **at the cursor** on any device.
 |------|--------|---------|
 | 1 | `prompts/relay-upgrade.md` | relay speaks protocol v1 (peers, heartbeat, lock, sealed frames) |
 | 2 | `prompts/web-app.md` | web app uses the symmetric model + peer list + E2E |
-| 3 | `prompts/android.md` | Yap Keyboard (FlorisBoard fork) → signed APK, paste at cursor |
-| 4 | `prompts/desktop.md` | Yap Desktop (Tauri) → injects keystrokes, fixes Linux |
+| 3 | `prompts/android.md` | Ripple Keyboard (FlorisBoard fork) → signed APK, paste at cursor |
+| 4 | `prompts/desktop.md` | Ripple Desktop (Tauri) → injects keystrokes, fixes Linux |
 | 5 | (await human) | iOS |
 
 Finish each step — build + smoke-test — before starting the next. After each,

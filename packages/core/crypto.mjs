@@ -1,4 +1,4 @@
-// Yap end-to-end crypto — the shared secret is the pairing code, nothing else.
+// Ripple end-to-end crypto — the shared secret is the pairing code, nothing else.
 //
 // Design goals:
 //   * The relay must stay a BLIND pipe. It never sees the raw code and never

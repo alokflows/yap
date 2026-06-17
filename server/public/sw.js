@@ -1,7 +1,7 @@
-// Yap service worker — just an offline app shell. It must never touch the
+// Ripple service worker — just an offline app shell. It must never touch the
 // live relay (WebSocket /ws, polling /poll), so it only handles same-origin
 // GETs for the static UI and stays out of the way of everything else.
-const CACHE = 'yap-v11';
+const CACHE = 'ripple-v11';
 const SHELL = [
   '/',
   '/index.html',

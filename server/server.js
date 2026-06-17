@@ -1,4 +1,4 @@
-// Yap relay.
+// Ripple relay.
 //
 // One tiny process does two jobs:
 //   1. Serves the phone web app (public/index.html) over HTTP.
@@ -20,6 +20,33 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const HELPERS_DIR = path.join(__dirname, 'helpers');
 const PORT = Number(process.env.PORT) || 8080;
 const HEARTBEAT_MS = 30_000;
+
+// --- Abuse limits (in-memory, no deps) -------------------------------------
+// The relay is a blind public pipe, so it must shrug off floods, code-guessing
+// and giant frames without a database or external service. These bounds are
+// generous for real multi-device use but cut off automated abuse.
+const MAX_TOTAL_CONNS = 5_000;   // global concurrent WebSocket sockets
+const MAX_ROOM_MEMBERS = 16;     // devices sharing one code at once
+const RL_WINDOW_MS = 10_000;     // rate-limit window per IP
+const RL_MAX_CONN = 40;          // new WS connections per IP per window
+const RL_MAX_POLL = 150;         // poll requests per IP per window
+const rateBuckets = new Map();   // ip -> { reset, conn, poll }
+
+// Behind Render the real client is in x-forwarded-for; fall back to the socket.
+function clientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) return String(xff).split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || '';
+}
+
+// Fixed-window per-IP counter. Returns false once the window's budget is spent.
+function rateOk(ip, kind) {
+  if (!ip) return true;
+  const now = Date.now();
+  let b = rateBuckets.get(ip);
+  if (!b || now > b.reset) { b = { reset: now + RL_WINDOW_MS, conn: 0, poll: 0 }; rateBuckets.set(ip, b); }
+  return kind === 'conn' ? (++b.conn) <= RL_MAX_CONN : (++b.poll) <= RL_MAX_POLL;
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -68,11 +95,11 @@ function sanitizeRoom(raw) {
 function windowsBat(ps) {
   const header = [
     '@echo off',
-    'title Yap - paste at your cursor',
-    'REM Yap helper for Windows. Double-click to run.',
+    'title Ripple - paste at your cursor',
+    'REM Ripple helper for Windows. Double-click to run.',
     'REM A small box asks for your pairing code, then this window stays open',
     'REM and every message you send from your phone pastes at your cursor.',
-    'REM Nothing is hidden or installed. Close this window to stop Yap.',
+    'REM Nothing is hidden or installed. Close this window to stop Ripple.',
     'powershell -NoProfile -ExecutionPolicy Bypass -Sta -Command "Get-Content -LiteralPath \'%~f0\' | Select-Object -Skip 8 | Out-String | Invoke-Expression"',
     'exit /b',
   ];
@@ -82,26 +109,26 @@ function windowsBat(ps) {
 }
 
 const HELPERS = {
-  '/dl/yap-windows.bat': {
-    template: 'yap-windows.ps1',
+  '/dl/ripple-windows.bat': {
+    template: 'ripple-windows.ps1',
     type: 'application/octet-stream',
     build: (tpl, code) => windowsBat(tpl.replace('__CODE__', code)),
   },
-  '/dl/yap-mac.command': {
-    template: 'yap-mac.command',
+  '/dl/ripple-mac.command': {
+    template: 'ripple-mac.command',
     type: 'text/plain; charset=utf-8',
     build: (tpl, code) => tpl.replace('__CODE__', code),
   },
-  '/dl/yap-linux.sh': {
-    template: 'yap-linux.sh',
+  '/dl/ripple-linux.sh': {
+    template: 'ripple-linux.sh',
     type: 'text/plain; charset=utf-8',
     build: (tpl, code) => tpl.replace('__CODE__', code),
   },
   // Double-clickable launcher: opens a terminal and runs the helper above,
   // which asks for the pairing code — so Linux feels like the Windows flow and
   // you can use a different code any time. The code is not baked in.
-  '/dl/yap-linux.desktop': {
-    template: 'yap-linux.desktop',
+  '/dl/ripple-linux.desktop': {
+    template: 'ripple-linux.desktop',
     type: 'application/x-desktop; charset=utf-8',
     build: (tpl) => tpl,
   },
@@ -128,6 +155,11 @@ const server = http.createServer(async (req, res) => {
     // delivery is bounded by the network, not a fixed poll interval.
     const pollMatch = urlPath.match(/^\/poll\/([A-Za-z0-9_-]{3,64})\/(\d+)(\/text)?$/);
     if (pollMatch) {
+      if (!rateOk(clientIp(req), 'poll')) {
+        res.writeHead(429, { 'Retry-After': '10', 'Access-Control-Allow-Origin': '*' });
+        res.end('');
+        return;
+      }
       const code = pollMatch[1];
       const after = Number(pollMatch[2]) || 0;
       const asText = Boolean(pollMatch[3]);
@@ -195,7 +227,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Desktop helper downloads, with the pairing code baked in when supplied:
-    // GET /dl/yap-windows.bat?code=ABCDE  -> helper pre-set to that code.
+    // GET /dl/ripple-windows.bat?code=ABCDE  -> helper pre-set to that code.
     const helper = HELPERS[urlPath];
     if (helper) {
       const code = sanitizeCode(new URL(req.url, 'http://localhost').searchParams.get('code'));
@@ -406,13 +438,22 @@ function sanitizeDid(raw) {
   return (raw || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
 }
 
-const wss = new WebSocketServer({ server, path: '/ws' });
+// maxPayload drops oversized frames at the transport, before we ever buffer or
+// JSON.parse attacker-controlled bytes (the app-level length check is a backstop).
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: MAX_TEXT_LENGTH + 200_000 });
 
 wss.on('connection', (ws, req) => {
   const params = new URL(req.url, 'http://localhost').searchParams;
   const code = sanitizeRoom(params.get('room'));
   const role = params.get('role') === 'desktop' ? 'desktop' : 'phone';
   const did = sanitizeDid(params.get('did'));
+
+  // Shed load before doing any work: global ceiling + per-IP connection rate.
+  if (wss.clients.size > MAX_TOTAL_CONNS || !rateOk(clientIp(req), 'conn')) {
+    send(ws, { type: 'error', code: 'busy', message: 'Server busy — please try again in a moment.' });
+    ws.close();
+    return;
+  }
 
   if (!ROOM_CODE_RE.test(code)) {
     send(ws, { type: 'error', message: 'Invalid room.' });
@@ -455,6 +496,14 @@ wss.on('connection', (ws, req) => {
       }
     }
   }
+  // Cap devices per code (after evicting this device's own stale socket, so a
+  // reconnect is never refused). Codes are shared by design, so this only stops
+  // a runaway/abusive room, not normal multi-device use.
+  if (room.size >= MAX_ROOM_MEMBERS) {
+    send(ws, { type: 'error', code: 'full', message: 'This room is full (too many devices).' });
+    ws.close();
+    return;
+  }
   room.set(ws, { role, did, id: ws.connId, joinedAt: Date.now(), device: parseDevice(req.headers['user-agent']) });
   console.log(`[ws] ${role} joined room ${code}`);
 
@@ -493,14 +542,21 @@ wss.on('connection', (ws, req) => {
       sess.updated = m.t;
       wakeWaiters(sess);
       const peers = (rooms.get(code)?.size || 1) - 1; // other connected devices
+      // Echo the optional client id so the sender can pair this ack to the exact
+      // message it sent (the web app uses it; older/desktop clients omit it).
+      const cid = typeof msg.cid === 'string' ? msg.cid.slice(0, 32) : undefined;
       broadcast(code, { type: 'text', id: m.id, text: m.text, t: m.t }, { exclude: ws });
-      send(ws, { type: 'ack', id: m.id, t: m.t, delivered: peers });
+      send(ws, { type: 'ack', id: m.id, t: m.t, delivered: peers, cid });
       return;
     }
 
+    // Clearing wipes every device's shared notes, so only the host may do it —
+    // same trust level as kick/destroy. (A non-host can still clear its own
+    // local copy on the client without touching anyone else.)
     if (msg.type === 'clear') {
-      const sess = sessions.get(code);
-      if (sess) { sess.messages = []; sess.updated = Date.now(); }
+      if (!sess.hostDid || ws.did !== sess.hostDid) return;
+      sess.messages = [];
+      sess.updated = Date.now();
       broadcast(code, { type: 'cleared' }, { exclude: ws });
       return;
     }
@@ -581,10 +637,23 @@ wss.on('connection', (ws, req) => {
       if (r.size === 0) {
         rooms.delete(code);
       } else {
-        // The creator stays host for the life of the code. If they briefly drop
-        // and reconnect (same device id) they are still host. We do NOT hand the
-        // host role to another device on disconnect — host is whoever started
-        // the session, full stop.
+        // If the host left and devices remain, hand the host role to the oldest
+        // remaining device so the room never gets stuck un-administrable (a
+        // locked room could otherwise never be unlocked for the 12h session).
+        // Everyone in the room already shares the code, so this grants nothing
+        // new. A brief drop+reconnect keeps host because the same did is oldest.
+        const sess = sessions.get(code);
+        if (sess && ws.did && ws.did === sess.hostDid) {
+          let oldest = null;
+          for (const meta of r.values()) {
+            if (meta.did && (!oldest || meta.joinedAt < oldest.joinedAt)) oldest = meta;
+          }
+          if (oldest) {
+            sess.hostDid = oldest.did;
+            sess.knownDids.add(oldest.did);
+            sess.updated = Date.now();
+          }
+        }
         notifyRoom(code);
       }
     }
@@ -615,11 +684,15 @@ const heartbeat = setInterval(() => {
   for (const [code, sess] of sessions) {
     if (now - sess.updated > SESSION_TTL_MS) sessions.delete(code);
   }
+  // Drop expired rate-limit buckets so the map tracks only active IPs.
+  for (const [ip, b] of rateBuckets) {
+    if (now > b.reset) rateBuckets.delete(ip);
+  }
 }, HEARTBEAT_MS);
 
 wss.on('close', () => clearInterval(heartbeat));
 
 server.listen(PORT, () => {
-  console.log(`Yap relay listening on http://localhost:${PORT}`);
+  console.log(`Ripple relay listening on http://localhost:${PORT}`);
   console.log(`WebSocket endpoint:        ws://localhost:${PORT}/ws`);
 });

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Yap helper for macOS — double-click to run.
+# Ripple helper for macOS — double-click to run.
 # Every message you send from the phone lands on your clipboard, so you can
 # press Cmd-V anywhere with full confidence. It also auto-pastes into the
 # front app if you grant Accessibility permission (optional).
@@ -10,7 +10,7 @@ SERVER="https://yap-mkk4.onrender.com"
 CODE="__CODE__"
 CODE=$(printf '%s' "$CODE" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9')
 if [ ${#CODE} -lt 3 ]; then
-  printf "Enter the pairing code shown in the Yap phone app: "
+  printf "Enter the pairing code shown in the Ripple phone app: "
   read -r CODE
   CODE=$(printf '%s' "$CODE" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9')
 fi

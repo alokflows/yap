@@ -1,5 +1,5 @@
 #!/bin/bash
-# Yap helper for Linux — run:  bash yap-linux.sh
+# Ripple helper for Linux — run:  bash ripple-linux.sh
 # Every message you send from the phone lands on your clipboard AND is pasted at
 # your cursor, so it feels like magic — just like the Windows helper.
 #
@@ -35,7 +35,7 @@ if   command -v wl-copy >/dev/null 2>&1; then COPY() { wl-copy; }
 elif command -v xclip   >/dev/null 2>&1; then COPY() { xclip -selection clipboard; }
 elif command -v xsel    >/dev/null 2>&1; then COPY() { xsel --clipboard --input; }
 else
-  echo "Yap needs a clipboard tool. Install one:"
+  echo "Ripple needs a clipboard tool. Install one:"
   if [ -n "$IS_WAYLAND" ]; then hint "wl-clipboard"; else hint "xclip"; fi
   exit 1
 fi
@@ -67,7 +67,7 @@ sanitize_code() { printf '%s' "$1" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9
 
 CODE=$(sanitize_code "__CODE__")
 if [ ${#CODE} -lt 3 ]; then
-  printf "Enter the pairing code shown in the Yap phone app: "
+  printf "Enter the pairing code shown in the Ripple phone app: "
   read -r RAW
   CODE=$(sanitize_code "$RAW")
 fi
@@ -100,7 +100,7 @@ echo ""
 # Stable device id, so the host's room lock can recognise this helper: when the
 # host turns "Allow others" off, helpers seen while the room was open keep
 # working and unknown ones are refused. Stored once, reused every run.
-DID_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/yap/did"
+DID_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/ripple/did"
 DID=$(cat "$DID_FILE" 2>/dev/null | tr -cd 'A-Za-z0-9_-' | cut -c1-40)
 if [ -z "$DID" ]; then
   DID=$( (cat /proc/sys/kernel/random/uuid 2>/dev/null) || date +%s%N )

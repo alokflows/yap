@@ -1,6 +1,6 @@
 name: desktop-release
 
-# Builds Yap Desktop for macOS, Windows and Linux and attaches the installers to
+# Builds Ripple Desktop for macOS, Windows and Linux and attaches the installers to
 # a GitHub Release. Trigger by pushing a tag like `v0.1.0`, or run it by hand
 # from the Actions tab (workflow_dispatch) to get a draft release to test.
 #
@@ -10,6 +10,15 @@ name: desktop-release
 on:
   push:
     tags: ["v*"]
+    # Temporary: build on this dev branch so the owner can download a test build
+    # without triggering CI by hand. Remove before merging to master.
+    # Only when desktop code (or this workflow) changes — server/web-only pushes
+    # don't need a rebuild.
+    branches: ["claude/ubuntu-app-issues-2dr7ek"]
+    paths:
+      - "apps/desktop/**"
+      - "packages/core-rs/**"
+      - ".github/workflows/desktop-release.yml"
   workflow_dispatch: {}
 
 jobs:
@@ -63,7 +72,7 @@ jobs:
         with:
           projectPath: apps/desktop
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'desktop-dev' }}
-          releaseName: "Yap Desktop ${{ github.ref_type == 'tag' && github.ref_name || 'dev build' }}"
+          releaseName: "Ripple Desktop ${{ github.ref_type == 'tag' && github.ref_name || 'dev build' }}"
           releaseBody: "Download the build for your OS. macOS: .dmg · Windows: .msi/.exe · Linux: .AppImage/.deb"
           releaseDraft: true
           prerelease: false

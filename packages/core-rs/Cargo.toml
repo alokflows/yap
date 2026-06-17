@@ -1,8 +1,8 @@
 [package]
-name = "yap-core"
+name = "ripple-core"
 version = "0.1.0"
 edition = "2021"
-description = "Yap end-to-end crypto core — the Rust mirror of packages/core/crypto.mjs"
+description = "Ripple end-to-end crypto core — the Rust mirror of packages/core/crypto.mjs"
 license = "MIT"
 
 # Same math as the browser/Node module: route on a hash of the pairing code,

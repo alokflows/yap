@@ -1,4 +1,4 @@
-//! Yap Desktop — joins a room as a normal peer (hashed room + sealed text) and
+//! Ripple Desktop — joins a room as a normal peer (hashed room + sealed text) and
 //! types received messages at the OS cursor. Same crypto as the web app, so the
 //! relay stays blind.
 
@@ -62,7 +62,7 @@ struct StatusPayload {
 }
 fn emit_status(app: &AppHandle, state: &str, devices: usize, error: Option<String>) {
     let _ = app.emit(
-        "yap://status",
+        "ripple://status",
         StatusPayload { state: state.into(), devices, error },
     );
 }
@@ -74,7 +74,7 @@ struct MsgPayload {
     delivered: u32,
 }
 fn emit_message(app: &AppHandle, dir: &str, text: String, delivered: u32) {
-    let _ = app.emit("yap://message", MsgPayload { dir: dir.into(), text, delivered });
+    let _ = app.emit("ripple://message", MsgPayload { dir: dir.into(), text, delivered });
 }
 
 #[derive(Clone, Serialize)]
@@ -97,7 +97,7 @@ fn emit_devices(app: &AppHandle, v: &serde_json::Value, my_id: &Option<String>) 
             });
         }
     }
-    let _ = app.emit("yap://devices", devices);
+    let _ = app.emit("ripple://devices", devices);
 }
 
 // A stable per-device id, persisted under the app's config dir.
@@ -190,7 +190,12 @@ async fn run_connection(
             incoming = read.next() => {
                 match incoming {
                     Some(Ok(Message::Text(txt))) => {
-                        handle_incoming(app, key, &txt, inject_tx, settings, &mut outbox, &mut my_id);
+                        // A terminal message (kicked / room closed / locked / full /
+                        // busy) means: stop, don't reconnect-flap. Show why and end.
+                        if handle_incoming(app, key, &txt, inject_tx, settings, &mut outbox, &mut my_id) {
+                            stop.store(true, Ordering::SeqCst);
+                            return ConnEnd::Stopped;
+                        }
                     }
                     Some(Ok(Message::Ping(p))) => { let _ = write.send(Message::Pong(p)).await; }
                     Some(Ok(Message::Close(_))) | Some(Err(_)) | None => return ConnEnd::Dropped,
@@ -200,7 +205,7 @@ async fn run_connection(
             cmd = cmd_rx.recv() => {
                 match cmd {
                     Some(RelayCmd::SendText(text)) => {
-                        let blob = yap_core::seal(key, &text);
+                        let blob = ripple_core::seal(key, &text);
                         let payload = serde_json::json!({ "type": "text", "text": blob }).to_string();
                         if write.send(Message::Text(payload)).await.is_err() {
                             return ConnEnd::Dropped;
@@ -220,6 +225,7 @@ async fn run_connection(
     }
 }
 
+// Returns true if the message is terminal (the caller should stop, not reconnect).
 #[allow(clippy::too_many_arguments)]
 fn handle_incoming(
     app: &AppHandle,
@@ -229,8 +235,8 @@ fn handle_incoming(
     settings: &Arc<Mutex<Settings>>,
     outbox: &mut VecDeque<String>,
     my_id: &mut Option<String>,
-) {
-    let Ok(v) = serde_json::from_str::<serde_json::Value>(txt) else { return };
+) -> bool {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(txt) else { return false };
     match v.get("type").and_then(|t| t.as_str()).unwrap_or("") {
         "joined" | "presence" => {
             if let Some(id) = v.get("id").and_then(|x| x.as_str()) {
@@ -240,42 +246,60 @@ fn handle_incoming(
             let others = members.saturating_sub(1);
             emit_status(app, "connected", others, None);
             emit_devices(app, &v, my_id);
+            false
         }
         "history" => {
             // Show past messages, but never auto-type a backlog at the cursor.
             if let Some(arr) = v.get("messages").and_then(|m| m.as_array()) {
                 for m in arr {
                     if let Some(blob) = m.get("text").and_then(|t| t.as_str()) {
-                        if let Some(plain) = yap_core::unseal(key, blob) {
+                        if let Some(plain) = ripple_core::unseal(key, blob) {
                             emit_message(app, "in", plain, 0);
                         }
                     }
                 }
             }
+            false
         }
         "text" => {
             if let Some(blob) = v.get("text").and_then(|t| t.as_str()) {
-                if let Some(plain) = yap_core::unseal(key, blob) {
-                    emit_message(app, "in", plain.clone(), 0);
-                    let s = *settings.lock().unwrap();
-                    // Type at the cursor and/or copy. When both are on, the paste
-                    // leaves the text on the clipboard, so no separate copy needed.
-                    if s.type_at_cursor {
-                        let _ = inject_tx.send(InjectCmd::Paste { text: plain, keep_clipboard: s.auto_copy });
-                    } else if s.auto_copy {
-                        let _ = inject_tx.send(InjectCmd::Copy(plain));
+                match ripple_core::unseal(key, blob) {
+                    Some(plain) => {
+                        emit_message(app, "in", plain.clone(), 0);
+                        let s = *settings.lock().unwrap();
+                        // Type at the cursor and/or copy. When both are on, the paste
+                        // leaves the text on the clipboard, so no separate copy needed.
+                        if s.type_at_cursor {
+                            let _ = inject_tx.send(InjectCmd::Paste { text: plain, keep_clipboard: s.auto_copy });
+                        } else if s.auto_copy {
+                            let _ = inject_tx.send(InjectCmd::Copy(plain));
+                        }
+                    }
+                    // Don't fail silently: a message we can't decrypt almost always
+                    // means the other device is on a different code.
+                    None => {
+                        let _ = app.emit("ripple://notice", "Couldn't read a message — check both devices use the same code.".to_string());
                     }
                 }
             }
+            false
         }
         "ack" => {
             let delivered = v.get("delivered").and_then(|d| d.as_u64()).unwrap_or(0) as u32;
             if let Some(text) = outbox.pop_front() {
                 emit_message(app, "out", text, delivered);
             }
+            false
         }
-        "kicked" | "destroyed" => emit_status(app, "offline", 0, Some("Removed by host".into())),
-        _ => {}
+        "kicked" => { emit_status(app, "offline", 0, Some("Removed from this room.".into())); true }
+        "destroyed" => { emit_status(app, "offline", 0, Some("Room was closed by the host.".into())); true }
+        "error" => {
+            let m = v.get("message").and_then(|x| x.as_str()).unwrap_or("Disconnected.");
+            emit_status(app, "offline", 0, Some(m.to_string()));
+            // locked / full / busy are terminal — reconnecting would just flap.
+            matches!(v.get("code").and_then(|x| x.as_str()), Some("locked") | Some("full") | Some("busy"))
+        }
+        _ => false,
     }
 }
 
@@ -291,12 +315,12 @@ fn stop_relay(state: &State<AppState>) {
 #[tauri::command]
 fn connect(code: String, app: AppHandle, state: State<AppState>) -> Result<(), String> {
     stop_relay(&state);
-    let code = yap_core::normalize_code(&code);
+    let code = ripple_core::normalize_code(&code);
     if code.len() < 3 {
         return Err("Enter a pairing code (3+ characters).".into());
     }
-    let key = yap_core::key_from_code(&code);
-    let room = yap_core::room_from_code(&code);
+    let key = ripple_core::key_from_code(&code);
+    let room = ripple_core::room_from_code(&code);
     let did = get_or_create_did(&app);
 
     // macOS needs a one-time Accessibility grant to type into other apps.
@@ -366,33 +390,42 @@ fn undo(state: State<AppState>) {
 // ---- app -------------------------------------------------------------------
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let inject_tx = inject::spawn();
-    let state = AppState {
-        inject_tx,
-        settings: Arc::new(Mutex::new(Settings::default())),
-        relay: Mutex::new(None),
-    };
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(state)
         .setup(|app| {
+            // The injector emits UI notices, so it needs the app handle — spawn it
+            // here (where the handle exists) and register the state for commands.
+            let inject_tx = inject::spawn(app.handle().clone());
+            app.manage(AppState {
+                inject_tx,
+                settings: Arc::new(Mutex::new(Settings::default())),
+                relay: Mutex::new(None),
+            });
             build_tray(app.handle())?;
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // Closing the window hides to the tray (instant) instead of tearing
+            // down the webview + runtimes, which is what made "close" feel slow.
+            // Full exit is the tray's Quit item.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             connect, disconnect, send_text, set_type_at_cursor, set_auto_copy,
             copy_to_clipboard, get_settings, undo
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Yap Desktop");
+        .expect("error while running Ripple Desktop");
 }
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     use tauri::menu::{Menu, MenuItem};
     use tauri::tray::TrayIconBuilder;
 
-    let show = MenuItem::with_id(app, "show", "Show Yap", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show Ripple", true, None::<&str>)?;
     let disconnect_i = MenuItem::with_id(app, "disconnect", "Disconnect", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &disconnect_i, &quit])?;
@@ -412,7 +445,9 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 let state = app.state::<AppState>();
                 stop_relay(&state);
             }
-            "quit" => app.exit(0),
+            // Hard, instant exit — nothing to flush (ephemeral session), and it
+            // avoids any slow teardown of the clipboard/relay threads.
+            "quit" => std::process::exit(0),
             _ => {}
         })
         .build(app)?;

@@ -1,6 +1,6 @@
-# Yap — Handoff (read me, then continue)
+# Ripple — Handoff (read me, then continue)
 
-**You are Claude Code picking up the Yap project.** The owner is non-technical,
+**You are Claude Code picking up the Ripple project.** The owner is non-technical,
 usually on their phone, often away from the computer (which they leave on for
 you). Their standing instruction: *"read the handoff and continue."* They want
 maximum autonomy — do everything you can without making them intervene, and only
@@ -26,7 +26,7 @@ session can pick up cold.
 
 ---
 
-## 1. What Yap is
+## 1. What Ripple is
 
 Share a short **pairing code** between devices; anything you type or dictate on
 one device appears on the others (phone ↔ computer ↔ TV), both directions, no
@@ -34,7 +34,7 @@ accounts. On the **desktop app** received text is **typed at the OS cursor**.
 Live web app: **https://yap-mkk4.onrender.com**
 
 **Repo:** `alokflows/yap` (public, GitHub). Local working copy:
-`/Users/megha/Documents/Yap`. `gh` is authed as `alokflows`.
+`/Users/megha/Documents/Ripple`. `gh` is authed as `alokflows`.
 
 ---
 
@@ -111,7 +111,7 @@ Rust: `src-tauri/src/lib.rs` (relay client over `tokio-tungstenite` +
 `src-tauri/src/inject.rs` (keystroke/clipboard/undo). Crypto from `packages/core-rs`.
 Verified: `cargo test` (vectors) + a live sealed round-trip through the production
 relay using the desktop's exact stack. macOS `.app` installed at
-`/Applications/Yap.app`.
+`/Applications/Ripple.app`.
 
 ### Cross-platform installers (CI) ✅
 `.github/workflows/desktop-release.yml` (tauri-action) builds macOS/Windows/Linux
@@ -124,11 +124,14 @@ Public link: **https://github.com/alokflows/yap/releases/tag/desktop-dev**
 ## 5. What's LEFT (next steps, roughly in priority)
 
 1. **Verify Wayland typing on the owner's office Linux machine** (likely Ubuntu
-   GNOME Wayland). If `wtype`/`ydotool` is awkward, implement the **XDG
-   RemoteDesktop portal** (`ashpd`) for zero-install Wayland typing.
+   GNOME Wayland). The **XDG RemoteDesktop portal** (`ashpd`) is now implemented
+   (zero-install) with `wtype`/`ydotool` + clipboard fallbacks — but it has only
+   been `cargo check`'d, never run on a real Wayland session. Confirm the
+   permission dialog appears once and Ctrl+V lands at the cursor.
 2. **One shared logo everywhere** — web favicon, in-app header, and the desktop
-   **dock/taskbar app icon** (currently the default Tauri icon). Owner wants to
-   pick one good logo at the end and apply it to all.
+   **dock/taskbar app icon**. Desktop icons are now the brand terracotta logo
+   (regenerated from `apps/desktop/src/icon.svg`); if the owner picks a different
+   final logo, re-run `tauri icon` on a 1024px PNG of it to regenerate all sizes.
 3. **start-on-login** for the desktop (tauri autostart plugin).
 4. **A real "safe window" for undo** (today it's a 20s timer; the spec wants
    "only if nothing was typed after it" — needs a keystroke monitor).
@@ -183,21 +186,35 @@ Rust toolchain is installed via rustup; source it in each shell:
 The owner leaves the laptop on and wants you to test/build for them. The Claude
 CLI runs inside **Terminal.app**, so macOS TCC permissions go to **Terminal**:
 - **Accessibility → Terminal** (drive windows via `osascript`/System Events) and
-  **→ Yap** (so Yap can type at the cursor).
+  **→ Ripple** (so Ripple can type at the cursor).
 - **Screen Recording → Terminal** for `screencapture` (needs a Terminal relaunch
   to take effect — which would kill the session, so it applies next session).
-- **Automation → Terminal** → allow System Events / Yap.
+- **Automation → Terminal** → allow System Events / Ripple.
 
 If you have these, you can launch the app, bring it to front / full-screen,
 `screencapture` it, and `SendUserFile` the screenshot to the owner's phone, then
 minimize. Without Screen Recording, `screencapture` fails with "could not create
 image from display" — then just report in text. The macOS app is at
-`/Applications/Yap.app`.
+`/Applications/Ripple.app`.
 
 ---
 
 ## 9. Status / history log (newest first)
 
+- 2026-06-17 (later): Fixed the owner's three Ubuntu complaints. (1) **App icon**:
+  the bundled `src-tauri/icons/*` were a stray yellow/teal circle, not the brand
+  logo — regenerated every size (taskbar/installer/tray) from the real terracotta
+  `src/icon.svg` via `tauri icon`, so the dock/taskbar now shows the right logo.
+  (2) **Auto-copy on Wayland** (Ubuntu's default): `arboard` was X11-only — enabled
+  its `wayland-data-control` feature so the clipboard works on native Wayland.
+  (3) **Auto-paste / type-at-cursor on Wayland**: now zero-install via the **XDG
+  RemoteDesktop portal** (`ashpd`) — clipboard + portal-driven Ctrl+V; asks once
+  for keyboard permission and persists the restore token (saved under the app
+  config dir as `portal_restore_token`). Falls back to `wtype`/`ydotool`, then to
+  clipboard + a "press Ctrl+V" toast (new `ripple://notice` event). Verified with
+  `cargo check` (compiles; ashpd `remote_desktop`+`screencast` features, tokio);
+  **not run on a real Wayland box** — the portal dialog + actual keysym injection
+  still need a real-machine test. Portal code lives in `inject.rs::portal`.
 - 2026-06-17: Built the Tauri desktop app, made it web-identical (Create/Join +
   QR, Chat/Devices, toggles, right-click Copy/Resend), switched paste to
   clipboard+⌘V for speed, added Linux/Wayland typing (wtype/ydotool), set up the

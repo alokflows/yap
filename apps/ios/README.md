@@ -1,4 +1,4 @@
-# Yap Keyboard — iOS
+# Ripple Keyboard — iOS
 
 Reserved. iOS support is planned but **built last**.
 

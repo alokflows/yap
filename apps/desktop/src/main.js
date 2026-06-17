@@ -173,7 +173,15 @@ els.sheet.addEventListener("click", (e) => { if (e.target === els.sheet) closeSh
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!els.sheet.hidden) closeSheet(); if (!els.qrModal.hidden) closeQr(); } });
 
 // ---- devices ----
-const OS_ICON = { Windows: "🪟", macOS: "💻", iOS: "📱", Android: "📱", Linux: "🐧", Device: "🖥️" };
+// Same clean per-OS SVG glyphs as the web app, so the Devices list matches everywhere.
+const OS_ICON = {
+  Windows: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.4 10.4 4.3v7.2H3zM11.3 4.2 21 2.8v8.7h-9.7zM3 12.5h7.4v7.2L3 18.6zM11.3 12.5H21v8.7l-9.7-1.4z"/></svg>',
+  macOS: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.8c0-2 1.6-3 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.2 2-1.4 2.4-.4 6 1 8 .6 1 1.4 2 2.4 2 1 0 1.3-.6 2.5-.6s1.5.6 2.5.6 1.7-.9 2.3-1.9c.7-1 1-2 1-2.1-.1 0-2-.8-2-2.9zM14.6 6.2c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.8-.4 2.3-1.1z"/></svg>',
+  iOS: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>',
+  Android: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="10" rx="2"/><path d="M7 8 6 4M17 8l1-4M9 13h.01M15 13h.01"/></svg>',
+  Linux: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3a3 3 0 0 1 6 0c0 2 1 3 2 6s1 6-1 9H8c-2-3-2-6-1-9s2-4 2-6z"/><path d="M10 9h.01M14 9h.01"/></svg>',
+  Device: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+};
 function renderDevices(list) {
   els.devices.innerHTML = "";
   if (!list.length) { els.devicesEmpty.classList.remove("hidden"); return; }
@@ -190,14 +198,17 @@ function renderDevices(list) {
 }
 
 // ---- events from Rust ----
-listen("yap://status", (e) => {
+listen("ripple://status", (e) => {
   const { state, devices, error } = e.payload;
   if (state === "connected") setStatus("connected", devices > 0 ? `${devices} device${devices > 1 ? "s" : ""}` : "Waiting for your phone…");
   else if (state === "connecting") setStatus("connecting", "Connecting…");
   else { setStatus("offline", error || (currentCode ? "Reconnecting…" : "Not connected")); if (error) toast(error, "bad"); }
 });
-listen("yap://message", (e) => addMessage(e.payload.dir, e.payload.text, e.payload.delivered || 0));
-listen("yap://devices", (e) => renderDevices(e.payload || []));
+listen("ripple://message", (e) => addMessage(e.payload.dir, e.payload.text, e.payload.delivered || 0));
+listen("ripple://devices", (e) => renderDevices(e.payload || []));
+// Injector couldn't type at the cursor (e.g. Wayland with no typing tool) —
+// the text is on the clipboard instead; let the user know.
+listen("ripple://notice", (e) => toast(String(e.payload), "bad"));
 
 // ---- init ----
 window.addEventListener("DOMContentLoaded", async () => {
