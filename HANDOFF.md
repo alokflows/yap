@@ -182,6 +182,21 @@ to confirm history decrypts, kill/restore the connection to confirm reconnect.
 Confirm the relay logs show only hashed rooms and opaque blobs. Then merge → deploy.
 
 ### Task B — Desktop app (Tauri/Rust)  *(needs a real desktop; can't build in cloud)*
+**🟡 IN PROGRESS — built and working on macOS.** Scaffolded a Tauri v2 app in
+`apps/desktop/` (Rust core + vanilla HTML/JS UI). The crypto is mirrored in
+`packages/core-rs` and **passes the §4 vectors byte-for-byte** (`cargo test`,
+8/8). The relay client (`tokio-tungstenite` over **native-tls** — note: rustls
+needs a crypto-provider, native-tls avoids that) joins on the hashed room,
+seals/unseals, heartbeats (Pong), and reconnects; verified with a live
+round-trip against the production relay. UI has pairing, device count,
+Type-at-cursor vs Copy-to-clipboard, Stop-pasting, Undo-last, send-to-phone, and
+a tray (Show/Disconnect/Quit). macOS prompts once for Accessibility.
+**Left for Task B:** real on-device paste test (focus a text field, grant
+Accessibility), Windows/Linux run-through (Linux Wayland → XDG RemoteDesktop
+portal, currently relies on `enigo`), start-on-login, and a true keystroke-aware
+"safe window" for undo (today it's a 20s timer). Run: `cd apps/desktop && npm
+install && npm run tauri dev`.
+
 Scaffold in `apps/desktop/` per `prompts/desktop.md`. The WS client + crypto
 live in **Rust**; the UI reuses the web look.
 - **Mirror the crypto in Rust** (`aes-gcm`, `pbkdf2`, `sha2`, `base64` crates)

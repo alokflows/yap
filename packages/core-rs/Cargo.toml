@@ -1,0 +1,16 @@
+[package]
+name = "yap-core"
+version = "0.1.0"
+edition = "2021"
+description = "Yap end-to-end crypto core — the Rust mirror of packages/core/crypto.mjs"
+license = "MIT"
+
+# Same math as the browser/Node module: route on a hash of the pairing code,
+# seal/unseal with AES-256-GCM keyed by PBKDF2(code). Verified byte-for-byte
+# against the JS test vectors (see tests below and HANDOFF.md §4).
+
+[dependencies]
+sha2 = "0.10"
+pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
+aes-gcm = "0.10"
+base64 = "0.22"

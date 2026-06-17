@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yap</title>
+    <script type="module" src="/main.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <span class="logo">Y</span>
+        <h1>Yap Desktop</h1>
+      </div>
+      <span class="status" id="status" data-state="offline">
+        <span class="dot"></span><span id="statusText">Not connected</span>
+      </span>
+    </header>
+
+    <main>
+      <!-- Pairing -->
+      <section class="card">
+        <label class="lbl" for="code">Pairing code</label>
+        <div class="row">
+          <input id="code" placeholder="enter code" autocomplete="off" spellcheck="false" maxlength="12" />
+          <button id="connectBtn" class="primary">Connect</button>
+          <button id="disconnectBtn" class="ghost hidden">Disconnect</button>
+        </div>
+        <p class="hint" id="hint">Open Yap on your phone, create a code, and type it here. Text you
+          send will be typed straight at your cursor.</p>
+      </section>
+
+      <!-- What happens to received text -->
+      <section class="card">
+        <div class="seg" role="tablist">
+          <button id="modePaste" class="seg-btn" aria-selected="true">Type at cursor</button>
+          <button id="modeCopy" class="seg-btn" aria-selected="false">Copy to clipboard</button>
+        </div>
+        <div class="controls">
+          <label class="switch">
+            <input type="checkbox" id="pausedChk" />
+            <span class="track"><span class="thumb"></span></span>
+            <span>Stop pasting</span>
+          </label>
+          <button id="undoBtn" class="ghost">Undo last</button>
+        </div>
+      </section>
+
+      <!-- Conversation -->
+      <section class="card grow">
+        <div class="feed-head">Messages <span class="count" id="count">0</span></div>
+        <ul id="feed" class="feed"></ul>
+        <div class="composer">
+          <input id="msg" placeholder="Type to send to your phone…" autocomplete="off" />
+          <button id="sendBtn" class="primary" disabled>Send</button>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast"></div>
+  </body>
+</html>
