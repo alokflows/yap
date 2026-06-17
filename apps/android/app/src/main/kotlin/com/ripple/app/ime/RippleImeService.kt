@@ -10,6 +10,7 @@ import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.Button
 import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -18,6 +19,7 @@ import com.ripple.app.RippleRepository
 import com.ripple.app.RippleState
 import com.ripple.app.net.ChatMessage
 import com.ripple.app.net.ConnState
+import com.ripple.app.util.QrCodes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,6 +52,9 @@ class RippleImeService : InputMethodService() {
 
     private var statusView: TextView? = null
     private var chipsRow: LinearLayout? = null
+    private var chipsScroll: View? = null
+    private var qrView: ImageView? = null
+    private var qrShown = false
     private val letterKeys = ArrayList<Button>()
 
     override fun onCreate() {
@@ -82,6 +87,9 @@ class RippleImeService : InputMethodService() {
     override fun onStartInputView(info: android.view.inputmethod.EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         composeBuffer.setLength(0)
+        qrShown = false
+        qrView?.visibility = View.GONE
+        chipsScroll?.visibility = View.VISIBLE
         render(RippleRepository.state.value)
     }
 
@@ -107,6 +115,7 @@ class RippleImeService : InputMethodService() {
             setOnClickListener { openApp() }
         }
         bar.addView(statusView)
+        bar.addView(pill("QR") { toggleQr() })
         bar.addView(pill("App") { openApp() })
         column.addView(bar)
 
@@ -114,17 +123,49 @@ class RippleImeService : InputMethodService() {
             isHorizontalScrollBarEnabled = false
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
         }
+        chipsScroll = scroll
         chipsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(4), dp(2), dp(4), dp(6))
         }
         scroll.addView(chipsRow)
         column.addView(scroll)
+
+        // Pairing QR — hidden until the user taps "QR"; same /?room=CODE link as web.
+        qrView = ImageView(this).apply {
+            visibility = View.GONE
+            setBackgroundColor(Color.WHITE)
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            layoutParams = LinearLayout.LayoutParams(dp(180), dp(180)).also {
+                it.gravity = Gravity.CENTER_HORIZONTAL
+                it.bottomMargin = dp(6)
+            }
+        }
+        column.addView(qrView)
         return column
+    }
+
+    private fun toggleQr() {
+        val code = RippleRepository.currentCode
+        if (code.isEmpty()) { toast("Pair first — tap App to enter a code"); openApp(); return }
+        qrShown = !qrShown
+        if (qrShown) {
+            qrView?.setImageBitmap(QrCodes.pairing(code, dp(176)))
+            qrView?.visibility = View.VISIBLE
+            chipsScroll?.visibility = View.GONE
+        } else {
+            qrView?.visibility = View.GONE
+            chipsScroll?.visibility = View.VISIBLE
+        }
     }
 
     private fun render(state: RippleState) {
         statusView?.text = statusLine(state)
+        if (state.code.isEmpty() && qrShown) {
+            qrShown = false
+            qrView?.visibility = View.GONE
+            chipsScroll?.visibility = View.VISIBLE
+        }
         val row = chipsRow ?: return
         row.removeAllViews()
         val incoming = state.messages.filter { !it.mine }.takeLast(8)
