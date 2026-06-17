@@ -1,28 +1,36 @@
 # Ripple — Handoff (read me, then continue)
 
 **You are Claude Code picking up the Ripple project.** The owner is non-technical,
-usually on their phone, often away from the computer (which they leave on for
-you). Their standing instruction: *"read the handoff and continue."* They want
-maximum autonomy — do everything you can without making them intervene, and only
-ask when there is genuinely no other way. Keep messages short and concrete.
+often on their phone, sometimes away from the computer (which they leave on for
+you). Standing instruction: *"read the handoff and continue."* Maximum autonomy —
+do everything you can without making them intervene; ask only when there's
+genuinely no other way. Keep chat replies short and concrete.
 
-This file is the living context. Update it as you make progress so the next
-session can pick up cold.
+This file is the living context. **Update it as you make progress** so the next
+cold session is fully oriented. It must contain *everything* needed to continue.
 
 ---
 
 ## 0. Prime directives (do not violate)
 
-1. **Never break the live web app.** `master` is what users hit. The web app +
-   relay live in `server/` and deploy to Render (see §6). Verify before shipping.
+1. **Never break the live web app.** `master` is what users hit (Render deploys
+   it). Verify before shipping. The web app + relay live in `server/`.
 2. **Privacy is the product.** The relay is a *blind pipe*: it must never see the
    raw pairing code or any plaintext. Clients route on a hash of the code and
-   exchange only sealed (encrypted) blobs. No external/CDN calls at runtime.
-3. **Match the look.** Earthy "Claude" theme; minimal, fast. Web and desktop
-   should feel identical.
-4. **Tell the truth.** If something isn't verified (e.g. needs a real device),
-   say so. Don't claim a thing works that you didn't run.
-5. **Be surgical.** Don't touch unrelated code; remove dead code you create.
+   exchange only sealed (AES-GCM) blobs. No external/CDN calls at runtime.
+3. **Speed is the #1 feature.** This is a "type at the cursor" tool — latency is
+   the product. Never block the input path on the network. Advanced features come
+   second to instant, reliable delivery.
+4. **One soul across platforms.** Web ↔ desktop ↔ Android must feel identical:
+   same warm-clay "Claude" palette, same Ripple bubble icon, same flows. Improve
+   something in one place → mirror it everywhere.
+5. **Tell the truth.** If something isn't verified (needs a real device/network),
+   say so plainly. Never claim a thing works that you didn't run.
+6. **Think, don't stenograph.** The owner is non-technical and may describe a
+   want imprecisely. Engage critically: propose the better approach, flag risks,
+   suggest advanced features they didn't ask for but would want. Aim for
+   best-in-class ("build it like it's flight software — every pixel cared for").
+7. **Be surgical.** Don't touch unrelated code; remove dead code you create.
 
 ---
 
@@ -30,198 +38,305 @@ session can pick up cold.
 
 Share a short **pairing code** between devices; anything you type or dictate on
 one device appears on the others (phone ↔ computer ↔ TV), both directions, no
-accounts. On the **desktop app** received text is **typed at the OS cursor**.
-Live web app: **https://yap-mkk4.onrender.com**
+accounts. On clients with OS access (desktop app, Android keyboard) received
+text is **typed/committed at the cursor in any app**. Every device is a full
+**peer** (sends + receives).
 
-**Repo:** `alokflows/yap` (public, GitHub). Local working copy:
-`/Users/megha/Documents/Ripple`. `gh` is authed as `alokflows`.
+- **Live web app / relay:** `https://yap-mkk4.onrender.com` (hostname keeps the
+  old "yap" slug on purpose — see §3 / §7; it's invisible to users).
+- **Repo:** `alokflows/yap` on GitHub (public). The *product* is renamed to
+  Ripple everywhere; the **repo slug is still `yap`** until the owner renames it
+  in GitHub Settings (old links auto-redirect after). `gh` authed as `alokflows`.
+- Local working copy on the owner's Mac: `~/Documents/Ripple` (path may vary).
 
 ---
 
 ## 2. Repo layout
 
-- `server/` — the relay + web app (deployed). `server.js` is the Node WebSocket
-  relay; `server/public/index.html` is the **entire web UI** (inline CSS/JS),
-  plus `sw.js` (PWA service worker), `qrcode.js`, `jsQR.js`.
-- `packages/core/crypto.mjs` — E2E crypto (JS/Web Crypto), used by the web app.
-  Tests: `node --test packages/core/crypto.test.mjs` (7/7).
-- `packages/core-rs/` — the **Rust mirror** of the crypto. `cargo test` (8/8),
-  asserts the cross-language vectors below.
-- `apps/desktop/` — the **Tauri v2 desktop app** (Rust core + vanilla HTML/JS UI).
-- `apps/android/`, `apps/ios/` — placeholders (not started).
-- `prompts/` — original build specs. `docs/` — protocol/security docs.
-- `.github/workflows/` — `keepalive.yml` (pings the relay so Render's free tier
-  doesn't sleep) and `desktop-release.yml` (builds desktop installers, §7).
+- `server/` — relay + web app (deployed by Render, `rootDir: server`).
+  - `server.js` — Node WebSocket relay (`/ws`), long-poll (`/poll`), `/healthz`,
+    static file server, abuse limits (§5).
+  - `public/index.html` — the **entire web UI** (inline CSS/JS). `sw.js` (PWA),
+    `qrcode.js`, `jsQR.js`, `manifest.webmanifest`, `icon.svg`, `icons/*`.
+  - `scripts/gen-icons.mjs` — regenerates `icon.svg` + PWA PNGs from one bubble
+    definition (needs dev-only `@resvg/resvg-js`; NOT a runtime dep).
+  - `helpers/ripple-*` — legacy plaintext desktop helper scripts, **hidden/
+    disabled** in the UI (kept for the `/poll` path only). Don't surface them.
+- `packages/core/crypto.mjs` — E2E crypto (JS/WebCrypto). Tests:
+  `node --test packages/core/crypto.test.mjs` (7/7).
+- `packages/core-rs/` — **Rust mirror** of the crypto. `cargo test` (8/8).
+- `apps/desktop/` — **Tauri v2** desktop app (Rust core + vanilla HTML/JS UI).
+- `apps/android/` — **placeholder** (README only). The keyboard app lands here —
+  see §10, the next big build.
+- `apps/ios/` — placeholder (build last).
+- `docs/` — `protocol.md`, `security.md`, `architecture.md` (⚠ STALE — see §9).
+- `prompts/` — original build specs (`prompts/android.md` is the keyboard spec).
+- `.github/workflows/` — `keepalive.yml` (pings relay so Render free tier stays
+  awake), `desktop-release.yml` (builds desktop installers).
 
 ---
 
 ## 3. The crypto core (the heart of the privacy model)
 
-Same math in JS (`packages/core/crypto.mjs`) and Rust (`packages/core-rs`):
+Identical math in JS (`packages/core/crypto.mjs`) and Rust (`packages/core-rs`).
+**A third (Kotlin) implementation is required for Android — see §10/§9.**
+
 - `normalizeCode` → upper-case, strip non-alphanumerics.
-- `roomFromCode(code)` → `base64url(SHA-256(code))`. **The relay routes on this**,
+- `roomFromCode(code)` → `base64url(SHA-256(code))`. **Relay routes on this**,
   never the raw code.
 - `keyFromCode(code)` → AES-GCM-256 key via PBKDF2 (salt `yap.kdf.v1`, **210000**
-  iters, SHA-256).
+  iters, SHA-256). ⚠ The salt literal is `yap.kdf.v1` — **do NOT rename it**;
+  changing it breaks all interop and the vectors below. It's invisible to users.
 - `seal(key, text)` → `base64url(iv(12) || AES-GCM ciphertext)`.
-- `unseal(key, blob)` → plaintext, or null on wrong key / tamper (never throws).
+- `unseal(key, blob)` → plaintext, or null on wrong key/tamper (never throws).
 
-**Cross-language vectors (must stay byte-for-byte; both JS+Rust tests assert):**
+**Cross-language vectors (must stay byte-for-byte; every implementation asserts):**
 - `roomFromCode("K7QF9P")` = `m5y7nOTrj9TE1Pbh9LSBNGFqitACsWIlLsKk8cfTqjg`
 - `seal` of `"hello, cursor"` with code `K7QF9P` and a forced all-zero 12-byte IV
   = `AAAAAAAAAAAAAAAAA8gVxDfIR9jOqUCwRBdsU7oecTFk-DiEAtrwkOY`
 
 ---
 
-## 4. What's DONE (and live)
+## 4. Protocol (as IMPLEMENTED — trust this over docs/)
 
-### Task A — E2E encryption (LIVE) ✅
-The relay is blind. Web app derives key+room from the code, routes the WS on the
-hashed room, seals outgoing / unseals incoming (skips undecryptable), keeps the
-local echo plaintext. Relay has `sanitizeRoom()` (base64url ≤64) on WS + `/poll`,
-raised `MAX_TEXT_LENGTH`, and serves `packages/core/crypto.mjs` at
-`/core/crypto.mjs`. SW shell includes it. Helper-download UI hidden (old plaintext
-protocol). Verified end-to-end against the production relay.
+WebSocket `wss://yap-mkk4.onrender.com/ws?role=<phone|desktop>&room=<hash>&did=<id>`.
+JSON frames. The relay stores a per-code session in memory (notes + lock + host).
 
-### Web polish (LIVE) ✅
-- WhatsApp-style compact sent bubbles (time + tick only; device count in the tick
-  tooltip).
-- Fixed desktop layout overflow: the mobile-keyboard `visualViewport` hack is now
-  gated to touch devices, so desktop holds a stable 100dvh.
-- Auto-copy is focus-resilient: if the tab is unfocused when a message lands, it
-  copies the moment the tab regains focus.
+Client → server: `text` `{text: <sealed>, cid?}` · `clear` (host only) · `setOpen`
+`{open}` (host) · `kick` `{id}` (host) · `setHost` `{id}` (host) · `destroy`
+(host) · `ping`.
+Server → client: `joined` / `presence` `{members[], phones, desktops, open,
+hostDid, id}` · `history` `{messages[]}` · `text` `{id, text, t}` · `ack`
+`{id, t, delivered, cid?}` (echoes the sender's `cid` so the bubble pairs by id,
+not FIFO) · `cleared` · `kicked` · `destroyed` · `error` `{code?, message}` with
+codes `locked` / `full` / `busy` / (generic).
 
-### Task B — Desktop app (built; macOS verified) ✅ (mostly)
-`apps/desktop/` Tauri v2 app, **web-identical UX**:
-- Pairing identical to web: **Create code / Join with code**, then a locked code
-  with **QR / Invite / Change**. QR encodes `https://yap-mkk4.onrender.com/?room=CODE`
-  (vendored `qrcode.js`), so a phone scans it and opens the web app connected.
-- **Chat / Devices** tabs, message bubbles, composer; right-click a bubble →
-  **Copy / Resend**. Devices tab lists members (name/type/host) from presence.
-- Toggles: **Type at cursor** + **Auto-copy** (no separate copy mode). **Undo**
-  button (deletes the last pasted run within a ~20s safe window).
-- System tray: Show / Disconnect / Quit. macOS prompts once for Accessibility.
-- **Fast paste:** "type at cursor" = clipboard + Cmd/Ctrl+V (one paste action),
-  NOT char-by-char typing. Saves/restores the clipboard unless Auto-copy is on.
-- **Linux:** X11 uses clipboard + Ctrl+V (enigo). **Wayland** types via `wtype`
-  (wlroots) or `ydotool` (GNOME/KDE, needs `ydotoold`) — see README + §8.
-
-Rust: `src-tauri/src/lib.rs` (relay client over `tokio-tungstenite` +
-**native-tls** — note: rustls needs a crypto-provider; native-tls avoids it),
-`src-tauri/src/inject.rs` (keystroke/clipboard/undo). Crypto from `packages/core-rs`.
-Verified: `cargo test` (vectors) + a live sealed round-trip through the production
-relay using the desktop's exact stack. macOS `.app` installed at
-`/Applications/Ripple.app`.
-
-### Cross-platform installers (CI) ✅
-`.github/workflows/desktop-release.yml` (tauri-action) builds macOS/Windows/Linux
-on a `v*` tag or manual `gh workflow run desktop-release.yml` → a GitHub Release
-`desktop-dev` with `.dmg` / `.msi` / `.exe` / `.AppImage` / `.deb` / `.rpm`.
-Public link: **https://github.com/alokflows/yap/releases/tag/desktop-dev**
+Host = first device with a `did` to join; **reassigned to the oldest remaining
+device if the host leaves**. Lock (`open=false`) lets only already-known `did`s
+rejoin. Codes are **shared/symmetric** — anyone with the code joins the same
+room; there is no "wrong password" and (deliberately) no "code taken".
 
 ---
 
-## 5. What's LEFT (next steps, roughly in priority)
+## 5. What's DONE
 
-1. **Verify Wayland typing on the owner's office Linux machine** (likely Ubuntu
-   GNOME Wayland). The **XDG RemoteDesktop portal** (`ashpd`) is now implemented
-   (zero-install) with `wtype`/`ydotool` + clipboard fallbacks — but it has only
-   been `cargo check`'d, never run on a real Wayland session. Confirm the
-   permission dialog appears once and Ctrl+V lands at the cursor.
-2. **One shared logo everywhere** — web favicon, in-app header, and the desktop
-   **dock/taskbar app icon**. Desktop icons are now the brand terracotta logo
-   (regenerated from `apps/desktop/src/icon.svg`); if the owner picks a different
-   final logo, re-run `tauri icon` on a 1024px PNG of it to regenerate all sizes.
-3. **start-on-login** for the desktop (tauri autostart plugin).
-4. **A real "safe window" for undo** (today it's a 20s timer; the spec wants
-   "only if nothing was typed after it" — needs a keystroke monitor).
-5. **Task C/D:** Android keyboard (IME) app with in-keyboard QR; TV (leanback,
-   auto-hand-host to first phone); NFC; iOS (separate Swift build). APK auto-built
-   into Releases.
-6. **Stronger codes / rate-limiting** on the relay (guessing throttle).
+### Web app + relay (on `master`; owner deployed) ✅
+- E2E encryption live; relay is blind (logs only the room **hash**, never code or
+  plaintext). Verified blind earlier against production.
+- **Relay hardening** (in-memory, no deps): per-IP rate limit on WS + `/poll`,
+  global connection ceiling, `maxPayload`, `MAX_ROOM_MEMBERS=16` ("room full"),
+  host reassignment on host disconnect, `clear` gated to host. Verified with a
+  7/7 local behavior-test run.
+- **Web robustness:** sent bubbles pair by client id (`cid`) so a dropped/rejected
+  send can't shift later bubbles onto the wrong text; undecryptable messages show
+  one calm "same code?" notice instead of vanishing; client-side length guard;
+  `full`/`locked` are terminal (no reconnect-flap).
+- **Rebrand Yap → Ripple** everywhere + new bubble icon (web favicon, PWA icons,
+  in-app mark). SW cache renamed (`ripple-v*`) so clients refresh.
+- ⚠ **I cannot reach `yap-mkk4.onrender.com` from the sandbox** (egress
+  allowlist → 403), so I can't confirm the live pixels myself. The owner deployed
+  on Render and reported it worked; `master` definitely contains all of the above.
+
+### Desktop app (Tauri v2, `apps/desktop/`) ✅ mostly
+Web-identical UX: Create/Join + QR, Chat/Devices, composer (paper-plane send),
+toggles (Type-at-cursor, Auto-copy), Undo, system tray. Right-click bubble →
+Copy/Resend. Devices list uses the **same per-OS SVG icons as the web**.
+- **Fast paste:** clipboard + Cmd/Ctrl+V (one action), not char typing.
+- **macOS:** prompts once for Accessibility. Verified working in the *Yap* era;
+  **not re-verified on a device since the rebrand**.
+- **Linux:** X11 = clipboard+Ctrl+V (enigo). **Wayland** (Ubuntu default) = the
+  **XDG RemoteDesktop portal** (`ashpd`, zero-install, one-time permission, token
+  persisted) → falls back to `wtype`/`ydotool` → falls back to clipboard + "press
+  Ctrl+V" toast. Auto-copy works on Wayland (`arboard` `wayland-data-control`).
+  ⚠ **Only `cargo check`'d — never run on a real Wayland session.** The owner has
+  not yet tested the Linux build.
+- **Close = hide to tray (instant); tray Quit = immediate exit** (fixed a slow
+  close). Kicked/closed/locked are terminal (no flap). Decrypt failures toast.
+- Rust: `src-tauri/src/lib.rs` (relay client, tokio-tungstenite + native-tls),
+  `src-tauri/src/inject.rs` (paste/clipboard/undo + `portal` module). Crypto from
+  `packages/core-rs` (now crate `ripple-core`). Crate is `ripple-desktop`, lib
+  `ripple_desktop_lib`, bundle id `com.alokflows.ripple`. Tauri events are
+  `ripple://status|message|devices|notice`.
+
+### Installers (CI) ✅
+`.github/workflows/desktop-release.yml` (tauri-action) builds mac/Win/Linux →
+GitHub Release **`desktop-dev`** (`.dmg`/`.msi`/`.exe`/`.AppImage`/`.deb`/`.rpm`).
+The latest run is the **Ripple** build (new icon, Wayland portal, fast close).
+⚠ **TEMPORARY:** the workflow currently also auto-builds on push to the branch
+`claude/ubuntu-app-issues-2dr7ek` (with a desktop-paths filter). **Remove that
+trigger before final** — it's marked in the workflow `on:` block.
+
+### Cross-language crypto ✅
+JS (7/7) + Rust (8/8) vectors pass; salt/host preserved through the rebrand.
 
 ---
 
-## 6. Deploy (web app / relay) — IMPORTANT quirk
+## 6. Git / deploy state (read carefully)
 
-Render hosts the relay (`render.yaml`, `rootDir: server`, autoDeploy from
-`master`). **Render's auto-deploy has NOT been firing** — the owner triggers a
-**Manual Deploy** in the Render dashboard after a push. There is no Render API key
-or deploy hook available locally, so you cannot deploy yourself; tell the owner to
-Manual Deploy (or have them paste a Render Deploy Hook URL so you can `curl` it).
-The whole repo is cloned by Render, so the `/core/crypto.mjs` route reading
-`../packages/core/crypto.mjs` works despite `rootDir: server`.
-
-To confirm a deploy landed: `curl -s https://yap-mkk4.onrender.com/sw.js | grep -o 'yap-v[0-9]*'`
-(bump that cache version in `server/public/sw.js` when you change the web app).
+- **`master` = the live truth.** As of this handoff it contains the full rebrand,
+  relay hardening, web robustness, and all desktop fixes (merge commit on top).
+- The branch **`claude/ubuntu-app-issues-2dr7ek`** holds the same work and is
+  what the desktop CI currently auto-builds. A **dedicated test/cleanup session
+  is planned** by the owner that will rigorously test all versions and **delete
+  branches** — so keep `master` authoritative and this file on `master`.
+- **Render deploy:** `render.yaml` (`rootDir: server`, `autoDeploy: true`,
+  service name `yap`). Autodeploy has historically been flaky → the owner clicks
+  **Manual Deploy**. There's no Render API key/deploy-hook locally; you can't
+  deploy yourself. **A web/relay change only goes live after a push to `master`
+  AND a Render deploy.** Bump the `sw.js` cache version (`ripple-v*`) on web
+  changes so PWA clients refresh.
+- Confirm a deploy (from a machine that can reach it):
+  `curl -s https://yap-mkk4.onrender.com/sw.js | grep -o 'ripple-v[0-9]*'`.
 
 ---
 
-## 7. Desktop: build / run / release commands
+## 7. Build / run / verify commands
 
 ```sh
-# dev run (from a Mac/Linux/Windows with the toolchain)
+# Crypto vectors
+node --test packages/core/crypto.test.mjs
+(cd packages/core-rs && cargo test)
+
+# Relay (local): node server.js  (PORT=8099 for tests)
+# Desktop dev / build
 cd apps/desktop && npm install && npm run tauri dev
+cd apps/desktop && npm run tauri build
+# Desktop crate check (needs Linux GUI deps: libwebkit2gtk-4.1-dev,
+# libxdo-dev, libssl-dev, libayatana-appindicator3-dev, librsvg2-dev,
+# libgtk-3-dev, patchelf):  (cd apps/desktop/src-tauri && cargo check)
 
-# local release build
-cd apps/desktop && npm run tauri build      # → .dmg/.app (mac), etc.
-
-# cross-platform installers via CI (needs gh auth as alokflows)
-gh workflow run desktop-release.yml
-gh run watch <run-id> --exit-status
-# refresh the public release if re-running (avoids asset clashes):
-gh release delete desktop-dev --yes --cleanup-tag
-# then dispatch again; publish the draft:
-gh release edit desktop-dev --draft=false --prerelease
+# Installers via CI
+gh workflow run desktop-release.yml   # or push a v* tag
+# Regenerate icons from the one bubble definition:
+(cd apps/desktop && npm i -D @resvg/resvg-js && npm run tauri icon <1024.png>)
+(cd server && npm i -D @resvg/resvg-js && node scripts/gen-icons.mjs)
 ```
 
-Rust toolchain is installed via rustup; source it in each shell:
-`. "$HOME/.cargo/env"`. Crypto tests: `(cd packages/core-rs && cargo test)` and
-`node --test packages/core/crypto.test.mjs`.
+Rust toolchain via rustup: `. "$HOME/.cargo/env"`.
 
 ---
 
-## 8. Running things for the owner (they're often away)
+## 8. Sandbox limits (be honest about these)
 
-The owner leaves the laptop on and wants you to test/build for them. The Claude
-CLI runs inside **Terminal.app**, so macOS TCC permissions go to **Terminal**:
-- **Accessibility → Terminal** (drive windows via `osascript`/System Events) and
-  **→ Ripple** (so Ripple can type at the cursor).
-- **Screen Recording → Terminal** for `screencapture` (needs a Terminal relaunch
-  to take effect — which would kill the session, so it applies next session).
-- **Automation → Terminal** → allow System Events / Ripple.
-
-If you have these, you can launch the app, bring it to front / full-screen,
-`screencapture` it, and `SendUserFile` the screenshot to the owner's phone, then
-minimize. Without Screen Recording, `screencapture` fails with "could not create
-image from display" — then just report in text. The macOS app is at
-`/Applications/Ripple.app`.
+The cloud sandbox **cannot reach `yap-mkk4.onrender.com`** (egress 403) and
+**cannot build/run Android, iOS, or a GUI** (no Android SDK/emulator, no display).
+So: web "is it live" checks, Android builds, and on-device behavior must be
+validated via **CI + the owner's real device**, or from the owner's Mac. State
+this plainly rather than guessing. `cargo check`/unit tests/relay tests DO run
+here and are real verification.
 
 ---
 
-## 9. Status / history log (newest first)
+## 9. ⚠ Known issues / must-fix-soon (engineering judgment)
 
-- 2026-06-17 (later): Fixed the owner's three Ubuntu complaints. (1) **App icon**:
-  the bundled `src-tauri/icons/*` were a stray yellow/teal circle, not the brand
-  logo — regenerated every size (taskbar/installer/tray) from the real terracotta
-  `src/icon.svg` via `tauri icon`, so the dock/taskbar now shows the right logo.
-  (2) **Auto-copy on Wayland** (Ubuntu's default): `arboard` was X11-only — enabled
-  its `wayland-data-control` feature so the clipboard works on native Wayland.
-  (3) **Auto-paste / type-at-cursor on Wayland**: now zero-install via the **XDG
-  RemoteDesktop portal** (`ashpd`) — clipboard + portal-driven Ctrl+V; asks once
-  for keyboard permission and persists the restore token (saved under the app
-  config dir as `portal_restore_token`). Falls back to `wtype`/`ydotool`, then to
-  clipboard + a "press Ctrl+V" toast (new `ripple://notice` event). Verified with
-  `cargo check` (compiles; ashpd `remote_desktop`+`screencast` features, tokio);
-  **not run on a real Wayland box** — the portal dialog + actual keysym injection
-  still need a real-machine test. Portal code lives in `inject.rs::portal`.
-- 2026-06-17: Built the Tauri desktop app, made it web-identical (Create/Join +
-  QR, Chat/Devices, toggles, right-click Copy/Resend), switched paste to
-  clipboard+⌘V for speed, added Linux/Wayland typing (wtype/ydotool), set up the
-  cross-platform release CI, published the `desktop-dev` release, installed the
-  mac app to `/Applications`. Rust crypto mirror added + vectors verified.
-- 2026-06-16: Shipped Task A (E2E encryption) to the live web app + relay; web
-  polish (bubbles, layout, auto-copy). Relay verified blind.
+1. **`docs/protocol.md` + `docs/security.md` describe a DIFFERENT protocol than
+   the code** (they claim `hello`/`welcome`/`peers`, XChaCha20, Argon2id, HKDF,
+   no host). The real protocol is §4 above (AES-GCM, PBKDF2-210k, fixed salt,
+   real host model). **Fix the docs to match reality BEFORE building Android** —
+   the keyboard will be built against these contracts and will be built *wrong*
+   otherwise. This is the single highest-leverage thing to do next.
+2. **Crypto is weaker than documented** — PBKDF2-210k + fixed app-wide salt, not
+   Argon2id. Either upgrade or correct the doc + re-rate short-code risk. Folding
+   the room hash into the salt would stop cross-user rainbow-tabling cheaply.
+3. **Reliability/security audit findings** (from a prior deep audit) mostly fixed
+   on the relay; remaining: no client resend of offline-queued messages; presence
+   leaks room occupancy to anyone who guesses a room hash (inherent to a blind
+   relay; rate-limit mitigates); legacy `/poll` + `/dl` raw-code routes still
+   exist (helpers disabled) — consider removing.
+4. **Desktop unverified on device since rebrand** (mac + Linux). **Wayland portal
+   never run for real.** Owner hasn't checked Linux yet.
+5. **Temporary branch CI trigger** in `desktop-release.yml` to remove.
+6. **Repo still named `yap`** — owner to rename to `ripple`.
 
-When a whole area is finished and durably documented in `docs/`/`prompts/`, you
-may trim this file — but keep it as the single place a cold session gets oriented.
+---
+
+## 10. NEXT BIG BUILD — Ripple Keyboard (Android + TV)
+
+**Vision (owner's words, refined):** a *professional, privacy-first, blazing-fast*
+keyboard that is a full Ripple peer. You can read/insert the chat **without
+leaving the keyboard**, OR open the **full app** (a website-identical screen) for
+the complete experience plus keyboard settings. Same signed APK runs on phones
+and **Android TV** (leanback). FlorisBoard is the base (don't reinvent a keyboard).
+
+### Architecture (recommended)
+- **Fork FlorisBoard** (Apache-2.0, Kotlin/Gradle/AndroidX) into `apps/android/`.
+  Keep its IME engine, layouts, emoji, clipboard, theming. **Preserve `NOTICE`**.
+- **Ripple panel inside the IME:** a toolbar key opens a panel (same pattern as
+  FlorisBoard's clipboard/emoji panels) with tabs **Connect / Live / History**.
+  Commit received text at the cursor via `currentInputConnection.commitText()`.
+  Dictate/type → seal → send (full peer). Respect a consent mode (auto/ask/off).
+- **Container app (Jetpack Compose):** full-screen chat UI that **mirrors the
+  website** (pairing: Create/Join + QR scan, Chat, Devices) PLUS **Settings**
+  (theme, consent mode, default code, autostart, manage devices) PLUS the
+  **keyboard enable/setup wizard**. This is the "extra features in the app" the
+  owner wants.
+- **One networking service:** a bound **foreground Service** owns a single OkHttp
+  WebSocket shared by the IME and the app (so the connection survives and the
+  input path never blocks on the network). Heartbeat + backoff reconnect.
+  Protocol v1 per §4. **Speed first:** pre-warm the socket; commit-at-cursor is
+  synchronous and instant; never await the network on a keypress.
+- **Kotlin crypto mirror (REQUIRED, NEW):** a 3rd implementation of §3 in Kotlin
+  (AES-GCM, PBKDF2-210k, salt `yap.kdf.v1`, `roomFromCode` = base64url SHA-256).
+  Add a unit test asserting the two cross-language vectors in §3. This is the
+  riskiest correctness item — do it first and prove the vectors.
+- **History at rest encrypted** (Jetpack Security / EncryptedSharedPreferences) —
+  the spec says never store history unencrypted.
+- **TV (leanback):** leanback launcher intent + a D-pad-friendly Connect screen;
+  receive text into TV search/text boxes; same APK. (Host model already exists in
+  the relay if a "hand control to phone" flow is wanted later.)
+- **Distribution (no Play Store):** `./gradlew assembleRelease` → **signed APK**,
+  sideloadable to phone + TV. Add `android-release.yml` CI (build APK on tag/
+  dispatch into a release). Keystore: generate, store base64 in a GitHub secret,
+  document in `apps/android/README.md`.
+
+### Design system
+- **Use Google's Material 3** (`m3.material.io`) as the base for the *app*
+  screens (Compose Material3): components, motion, accessibility, dynamic type.
+  **Override the color scheme with our warm-clay palette** (clay `#c4673f`, paper
+  `#faf3ed`) as the M3 seed/scheme, and use the Ripple bubble as the mark. For the
+  *keyboard*, use FlorisBoard's theming with the same palette (Light, Dark, true-
+  black OLED). Net: Material 3 for structure + our identity for skin. (Answer to
+  the owner's "is Google's design.md useful?": yes — adopt M3 for the app, keep
+  our palette/bubble.)
+
+### Suggested advanced features (propose to owner; don't blindly add all)
+- On-device **dictation** via Android `SpeechRecognizer` (private, fast) wired to
+  the keyboard mic → send.
+- **QR scan inside the keyboard/app** to join a code instantly (CameraX + a QR
+  lib, or reuse `jsQR` approach natively).
+- **Quick actions**: one-tap paste of the last received message; swipe to insert
+  history items; a floating "incoming" chip above the keyboard.
+- **Per-app consent** (auto-paste only in allowlisted apps).
+- NFC tap-to-pair (TV ↔ phone) — later.
+
+### Hard truths / what I can/can't guarantee
+- I can write all the Kotlin/Gradle code, the CI, and the crypto+vectors. I
+  **cannot build or run Android here** (no SDK/Gradle/emulator/device). "It
+  compiles / it works" must be proven by **CI + the owner's device/TV test**.
+- Forking FlorisBoard is a large codebase to vendor and keep updated; it's still
+  the right call for v1 (full keyboard for free) — but flag the maintenance cost.
+- Do §9.1 (fix the protocol/security docs to match reality) **before** writing the
+  Android networking/crypto, or effort will be wasted on the wrong contract.
+
+---
+
+## 11. Status / history log (newest first)
+
+- 2026-06-17 (evening): Wrote this comprehensive handoff. Merged the rebrand +
+  fixes branch to `master`; owner deployed the web app to Render (reported
+  working; unverifiable from sandbox). Set the Android keyboard + TV plan (§10)
+  and the must-fix list (§9). Next big build = Ripple Keyboard.
+- 2026-06-17: **Rebrand Yap → Ripple** everywhere + new smooth speech-bubble icon
+  (one source → web + desktop). Kept crypto salt, relay host, Render service name
+  (technical/infra). Verified: desktop `cargo check`, crypto 8/8 + 7/7, relay 7/7.
+- 2026-06-17: **Relay hardening** (rate limits, room cap, host reassignment,
+  host-gated clear) + **web robustness** (id-correlated bubbles, decrypt notice,
+  length guard, terminal full/locked) + **desktop** (Wayland XDG portal paste,
+  Wayland clipboard, fast close-to-tray, terminal disconnects). Reliability/
+  security audit run (findings in §9).
+- 2026-06-17 (early): Tauri desktop app made web-identical; Linux/Wayland typing;
+  cross-platform release CI; `desktop-dev` release; Rust crypto mirror + vectors.
+- 2026-06-16: Shipped E2E encryption to the live web app + relay; web polish.
+
+When an area is finished and durably documented in `docs/`/`prompts/`, you may
+trim this file — but keep it the single place a cold session gets oriented.
