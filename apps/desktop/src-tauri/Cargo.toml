@@ -39,3 +39,6 @@ uuid = { version = "1", features = ["v4"] }
 [target.'cfg(target_os = "macos")'.dependencies]
 # Prompt for the one-time Accessibility permission keystroke injection needs.
 macos-accessibility-client = "0.0.1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ashpd = { version = "0.13.11", default-features = false, features = ["tokio", "remote_desktop", "screencast"] }

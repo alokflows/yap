@@ -124,8 +124,10 @@ Public link: **https://github.com/alokflows/yap/releases/tag/desktop-dev**
 ## 5. What's LEFT (next steps, roughly in priority)
 
 1. **Verify Wayland typing on the owner's office Linux machine** (likely Ubuntu
-   GNOME Wayland). If `wtype`/`ydotool` is awkward, implement the **XDG
-   RemoteDesktop portal** (`ashpd`) for zero-install Wayland typing.
+   GNOME Wayland). The **XDG RemoteDesktop portal** (`ashpd`) is now implemented
+   (zero-install) with `wtype`/`ydotool` + clipboard fallbacks — but it has only
+   been `cargo check`'d, never run on a real Wayland session. Confirm the
+   permission dialog appears once and Ctrl+V lands at the cursor.
 2. **One shared logo everywhere** — web favicon, in-app header, and the desktop
    **dock/taskbar app icon**. Desktop icons are now the brand terracotta logo
    (regenerated from `apps/desktop/src/icon.svg`); if the owner picks a different
@@ -205,12 +207,14 @@ image from display" — then just report in text. The macOS app is at
   `src/icon.svg` via `tauri icon`, so the dock/taskbar now shows the right logo.
   (2) **Auto-copy on Wayland** (Ubuntu's default): `arboard` was X11-only — enabled
   its `wayland-data-control` feature so the clipboard works on native Wayland.
-  (3) **Auto-paste / type-at-cursor on Wayland**: still needs `wtype`/`ydotool`,
-  but no longer fails silently — when no typing tool is present it copies the text
-  and toasts "press Ctrl+V to paste" (new `yap://notice` event → UI toast). Verified
-  with `cargo check` (compiles, pulls in `wl-clipboard-rs`); not run on a real
-  Wayland box. **Still TODO:** XDG RemoteDesktop portal (`ashpd`) for true
-  zero-install Wayland typing.
+  (3) **Auto-paste / type-at-cursor on Wayland**: now zero-install via the **XDG
+  RemoteDesktop portal** (`ashpd`) — clipboard + portal-driven Ctrl+V; asks once
+  for keyboard permission and persists the restore token (saved under the app
+  config dir as `portal_restore_token`). Falls back to `wtype`/`ydotool`, then to
+  clipboard + a "press Ctrl+V" toast (new `yap://notice` event). Verified with
+  `cargo check` (compiles; ashpd `remote_desktop`+`screencast` features, tokio);
+  **not run on a real Wayland box** — the portal dialog + actual keysym injection
+  still need a real-machine test. Portal code lives in `inject.rs::portal`.
 - 2026-06-17: Built the Tauri desktop app, made it web-identical (Create/Join +
   QR, Chat/Devices, toggles, right-click Copy/Resend), switched paste to
   clipboard+⌘V for speed, added Linux/Wayland typing (wtype/ydotool), set up the

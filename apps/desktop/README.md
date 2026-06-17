@@ -27,8 +27,13 @@ Quit). On macOS it prompts once for Accessibility permission.
 Auto-copy works on both X11 and **Wayland** (Ubuntu's default — clipboard built
 with `wayland-data-control`).
 
-Type-at-cursor on **Wayland** needs a typing tool — `wtype` (wlroots:
-Sway/Hyprland) or `ydotool` (GNOME/KDE — needs the `ydotoold` daemon running):
+Type-at-cursor on **Wayland** uses the **XDG RemoteDesktop portal** — no install
+needed. The first time text is typed, the system asks once to let Yap control
+the keyboard (the permission is then remembered). Yap puts the text on the
+clipboard and the portal presses Ctrl+V, so layouts and emoji just work.
+
+If the portal is unavailable or denied, Yap falls back to `wtype` (wlroots:
+Sway/Hyprland) or `ydotool` (needs `ydotoold`) if installed:
 
 ```sh
 sudo apt install ydotool   # then: sudo ydotoold &
@@ -36,10 +41,8 @@ sudo apt install ydotool   # then: sudo ydotoold &
 sudo apt install wtype
 ```
 
-If no tool is present, Yap **doesn't fail silently**: it copies the message to
-the clipboard and shows "press Ctrl+V to paste", so it still works with one
-keypress. A no-install path via the XDG RemoteDesktop portal is the planned
-follow-up for true zero-setup typing.
+And if none of those work, Yap still **doesn't fail silently**: it copies the
+message and shows "press Ctrl+V to paste", so it works with one keypress.
 
 **Not yet done:** start-on-login; XDG portal for zero-setup Wayland; final shared
 logo / app icon.
