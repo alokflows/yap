@@ -65,6 +65,9 @@ text is **typed/committed at the cursor in any app**. Every device is a full
 - `packages/core/crypto.mjs` — E2E crypto (JS/WebCrypto). Tests:
   `node --test packages/core/crypto.test.mjs` (7/7).
 - `packages/core-rs/` — **Rust mirror** of the crypto. `cargo test` (8/8).
+- `packages/core-kt/` — **Kotlin mirror** of the crypto for Android (`RippleCrypto`).
+  Same vectors; verified with kotlinc 2.1.0 (5/5). `gradle test` or fold into the
+  Android app. JDK 21 + Gradle + (downloadable) kotlinc all work in the sandbox.
 - `apps/desktop/` — **Tauri v2** desktop app (Rust core + vanilla HTML/JS UI).
 - `apps/android/` — **placeholder** (README only). The keyboard app lands here —
   see §10, the next big build.
@@ -229,15 +232,14 @@ here and are real verification.
 
 ## 9. ⚠ Known issues / must-fix-soon (engineering judgment)
 
-1. **`docs/protocol.md` + `docs/security.md` describe a DIFFERENT protocol than
-   the code** (they claim `hello`/`welcome`/`peers`, XChaCha20, Argon2id, HKDF,
-   no host). The real protocol is §4 above (AES-GCM, PBKDF2-210k, fixed salt,
-   real host model). **Fix the docs to match reality BEFORE building Android** —
-   the keyboard will be built against these contracts and will be built *wrong*
-   otherwise. This is the single highest-leverage thing to do next.
-2. **Crypto is weaker than documented** — PBKDF2-210k + fixed app-wide salt, not
-   Argon2id. Either upgrade or correct the doc + re-rate short-code risk. Folding
-   the room hash into the salt would stop cross-user rainbow-tabling cheaply.
+1. ✅ **DONE — `docs/protocol.md` + `docs/security.md` now match the code** (the
+   as-built protocol in §4, AES-GCM + PBKDF2-210k + fixed salt + real host model).
+   They were rewritten; the Android keyboard can be built against them safely.
+2. **Crypto roadmap (documented, not yet changed):** it's PBKDF2-210k + fixed salt,
+   not Argon2id. `security.md` now states this honestly and lists the upgrade path:
+   fold the room hash into the salt (kills cross-user rainbow tables cheaply) →
+   Argon2id → PAKE. Worth doing, but it's a *coordinated* change across all four
+   crypto cores (JS/Rust/Kotlin) + a new vector set, so plan it deliberately.
 3. **Reliability/security audit findings** (from a prior deep audit) mostly fixed
    on the relay; remaining: no client resend of offline-queued messages; presence
    leaks room occupancy to anyone who guesses a room hash (inherent to a blind
@@ -275,10 +277,10 @@ and **Android TV** (leanback). FlorisBoard is the base (don't reinvent a keyboar
   input path never blocks on the network). Heartbeat + backoff reconnect.
   Protocol v1 per §4. **Speed first:** pre-warm the socket; commit-at-cursor is
   synchronous and instant; never await the network on a keypress.
-- **Kotlin crypto mirror (REQUIRED, NEW):** a 3rd implementation of §3 in Kotlin
-  (AES-GCM, PBKDF2-210k, salt `yap.kdf.v1`, `roomFromCode` = base64url SHA-256).
-  Add a unit test asserting the two cross-language vectors in §3. This is the
-  riskiest correctness item — do it first and prove the vectors.
+- ✅ **Kotlin crypto mirror DONE:** `packages/core-kt/` (`RippleCrypto`) mirrors §3
+  byte-for-byte and **passes the cross-language vectors** (verified with kotlinc
+  2.1.0, 5/5). The Android app depends on this module or includes `Crypto.kt`. The
+  riskiest correctness item is already de-risked.
 - **History at rest encrypted** (Jetpack Security / EncryptedSharedPreferences) —
   the spec says never store history unencrypted.
 - **TV (leanback):** leanback launcher intent + a D-pad-friendly Connect screen;
@@ -322,6 +324,12 @@ and **Android TV** (leanback). FlorisBoard is the base (don't reinvent a keyboar
 
 ## 11. Status / history log (newest first)
 
+- 2026-06-17 (night): Cleared the two Android blockers. (1) Rewrote
+  `docs/protocol.md` + `docs/security.md` to match the running code (they
+  described a different, never-built protocol). (2) Built the **Kotlin crypto
+  mirror** `packages/core-kt/` and proved it against the cross-language vectors
+  with kotlinc 2.1.0 (5/5) — also re-proved the exact JVM crypto via a `javac`
+  run. Android's hardest correctness piece is done; the keyboard build can start.
 - 2026-06-17 (evening): Wrote this comprehensive handoff. Merged the rebrand +
   fixes branch to `master`; owner deployed the web app to Render (reported
   working; unverifiable from sandbox). Set the Android keyboard + TV plan (§10)
