@@ -377,6 +377,18 @@ APK, enable the keyboard, pair, type both ways.
 
 ## 11. Status / history log (newest first)
 
+- 2026-06-18: **Camera QR scanning + downloadable releases + README redesign.**
+  (1) `ui/ScanScreen` — CameraX preview + **on-device ZXing decode** of the Y
+  plane (frames never leave the device); parses `/?room=CODE` or a bare code and
+  connects. Reused the bundled `zxing-core` (no ML Kit) to stay lean; **dropped
+  `material-icons-extended`** (APK bloat) for a local QR vector + `-core`.
+  (2) `android-build.yml` now **publishes the APK to a rolling `android-dev`
+  Release** (one-click download; verified — asset live, **12.4 MB debug**) and to
+  `v*` tags; desktop releases set to published. (3) Redesigned the landing README
+  (badges + Download table). All CI-green, merged to `master`. ⚠ Camera scan/
+  preview still unverified on a real device. **Size note:** 12.4 MB is the *debug*
+  APK; a release build (R8 minify + resource shrink) should roughly halve it but
+  must be validated on-device first (R8 can over-strip an untested app).
 - 2026-06-17 (latest+): **Pairing QR in the Android app + keyboard.** `util/QrCodes`
   (ZXing, offline) encodes the same `/?room=CODE` link as web/desktop; shown via a
   QR action in the Chat top bar and a "QR" pill in the keyboard panel. Generation
