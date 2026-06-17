@@ -184,15 +184,19 @@ android-build.yml` assembles a debug APK (`ripple-debug-apk`) — **green**.
   keyboard is up.
 - **Container app:** `RippleViewModel` + Compose Connect/Chat (warm-clay M3).
 - **Pairing QR:** `util/QrCodes` (ZXing, offline) generates the same `/?room=CODE`
-  QR as web/desktop — shown in the app's Chat top bar and the keyboard panel, so
-  another device's camera joins by scanning. (Generation only; camera *scanning*
-  to pair is still to do.)
+  QR as web/desktop (Chat top bar + keyboard panel) AND `ui/ScanScreen` scans one
+  with the camera (CameraX + on-device ZXing decode, no ML Kit). ⚠ Scanning is
+  unverified (emulator camera is synthetic).
 - **The keyboard:** `ime/RippleImeService` (InputMethodService) — a working
   compact key grid **plus the Ripple panel**: received text → chips that
   `commitText` **at the cursor** on tap; typed text → **send** to paired devices.
   Native key grid for now (FlorisBoard-grade layout can swap in later without
-  touching the panel/plumbing). ⚠ Compiles in CI only — **typing/commit-at-cursor
-  and the FGS notification are unverified until run on a device/emulator.**
+  touching the panel/plumbing). ✅ **Verified on an Android-15 emulator on the
+  owner's Mac (2026-06-18):** app launches (no crash), pairs to the **live relay**,
+  **E2E encrypted send + receive both work** (proven against a Node test-peer —
+  emoji intact, history replay OK), keyboard registers as an IME, renders the
+  panel, **inserts a received chip at the cursor**, letter keys type. Still
+  unverified: **camera QR scan**, the FGS notification, TV/leanback.
 
 ### Cross-language crypto ✅
 JS (7/7) + Rust (8/8) vectors pass; salt/host preserved through the rebrand.
@@ -233,10 +237,14 @@ cd apps/desktop && npm run tauri build
 # libxdo-dev, libssl-dev, libayatana-appindicator3-dev, librsvg2-dev,
 # libgtk-3-dev, patchelf):  (cd apps/desktop/src-tauri && cargo check)
 
-# Android (no SDK in the sandbox — CI is the source of truth)
-#   local, with Android SDK + JDK 17:
-(cd apps/android && gradle :app:assembleDebug)
+# Android — CI builds the APK, but the OWNER'S MAC can also run an emulator
+# (toolchain installed to ~/Library/Android/sdk; JDK = /opt/homebrew/opt/openjdk@17):
 gh workflow run android-build.yml     # CI build → ripple-debug-apk artifact
+SDK=$HOME/Library/Android/sdk; ADB=$SDK/platform-tools/adb
+$SDK/emulator/emulator -avd ripple -no-window -gpu swiftshader_indirect &  # headless boot
+$ADB wait-for-device; gh release download android-dev -R alokflows/ripple -p '*.apk' -O /tmp/r.apk --clobber
+$ADB install -r -g /tmp/r.apk && $ADB shell am start -n com.alokflows.ripple/com.ripple.app.MainActivity
+$ADB exec-out screencap -p > /tmp/shot.png   # drive via `input tap/text`, enable IME via `ime set`
 
 # Installers via CI
 gh workflow run desktop-release.yml   # or push a v* tag
@@ -377,6 +385,17 @@ APK, enable the keyboard, pair, type both ways.
 
 ## 11. Status / history log (newest first)
 
+- 2026-06-18: **FIRST ON-DEVICE TEST (emulator) — Android core works.** Renamed
+  repo+folder to **ripple** (`github.com/alokflows/ripple`, `~/Documents/ripple`).
+  Then stood up an **Android-15 arm64 emulator on the owner's Mac** (installed
+  openjdk@17 + cmdline-tools + emulator + system image to `~/Library/Android/sdk`;
+  AVD `ripple`; boot headless: `emulator -avd ripple -no-window -gpu
+  swiftshader_indirect`). Installed the release APK and verified against the LIVE
+  relay: app launches, pairs, **E2E send+receive both work** (Node test-peer with
+  the JS crypto — emoji + history OK), keyboard registers as IME, panel renders,
+  **received chip inserts at the cursor**, keys type. ⚠ Still unverified: camera
+  QR scan (synthetic emulator camera), FGS notification, TV. **Lesson:** "can't
+  test on device" was wrong on the owner's Mac — the emulator is the real loop now.
 - 2026-06-18: **Camera QR scanning + downloadable releases + README redesign.**
   (1) `ui/ScanScreen` — CameraX preview + **on-device ZXing decode** of the Y
   plane (frames never leave the device); parses `/?room=CODE` or a bare code and
