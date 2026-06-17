@@ -136,9 +136,11 @@ room; there is no "wrong password" and (deliberately) no "code taken".
   `full`/`locked` are terminal (no reconnect-flap).
 - **Rebrand Yap → Ripple** everywhere + new bubble icon (web favicon, PWA icons,
   in-app mark). SW cache renamed (`ripple-v*`) so clients refresh.
-- ⚠ **I cannot reach `yap-mkk4.onrender.com` from the sandbox** (egress
-  allowlist → 403), so I can't confirm the live pixels myself. The owner deployed
-  on Render and reported it worked; `master` definitely contains all of the above.
+- ✅ **Live deploy verified (2026-06-17, from the owner's Mac):** production
+  `sw.js` = `ripple-v11`, byte-identical to `master`; `/healthz` = ok. So the
+  current `master` web app/relay is what's live. (The *cloud sandbox* still can't
+  reach the relay — egress 403 — but the owner's Mac can, which is how this and
+  future deploys get confirmed: `curl -s …/sw.js | grep -o 'ripple-v[0-9]*'`.)
 
 ### Desktop app (Tauri v2, `apps/desktop/`) ✅ mostly
 Web-identical UX: Create/Join + QR, Chat/Devices, composer (paper-plane send),
@@ -165,9 +167,19 @@ Copy/Resend. Devices list uses the **same per-OS SVG icons as the web**.
 `.github/workflows/desktop-release.yml` (tauri-action) builds mac/Win/Linux →
 GitHub Release **`desktop-dev`** (`.dmg`/`.msi`/`.exe`/`.AppImage`/`.deb`/`.rpm`).
 The latest run is the **Ripple** build (new icon, Wayland portal, fast close).
-⚠ **TEMPORARY:** the workflow currently also auto-builds on push to the branch
-`claude/ubuntu-app-issues-2dr7ek` (with a desktop-paths filter). **Remove that
-trigger before final** — it's marked in the workflow `on:` block.
+✅ The temporary dev-branch auto-build trigger has been **removed** (2026-06-17);
+installers now come from `v*` tags or `workflow_dispatch` only.
+
+### Android container app (CI-green) ✅ scaffold
+`apps/android/` is now a buildable Gradle/AGP-8.7/Kotlin-2.1/Compose project — a
+full **encrypted peer** (Connect + Chat, warm-clay M3), **no IME yet**. One
+OkHttp WebSocket (`net/RippleClient`) speaks the §4 protocol (seal/unseal,
+room-hash routing, optimistic non-blocking send, id-correlated acks, backoff
+reconnect, terminal kicked/full/locked). Reuses `packages/core-kt` `RippleCrypto`
+**by source** (no drift). `minSdk 26` (the crypto needs `java.util.Base64` +
+PBKDF2, both API-26). `.github/workflows/android-build.yml` assembles a debug APK
+(`ripple-debug-apk` artifact) — **green** on the scaffold commit. Not yet run on
+a real device. Next: the FlorisBoard IME fork (see §10).
 
 ### Cross-language crypto ✅
 JS (7/7) + Rust (8/8) vectors pass; salt/host preserved through the rebrand.
@@ -208,6 +220,11 @@ cd apps/desktop && npm run tauri build
 # libxdo-dev, libssl-dev, libayatana-appindicator3-dev, librsvg2-dev,
 # libgtk-3-dev, patchelf):  (cd apps/desktop/src-tauri && cargo check)
 
+# Android (no SDK in the sandbox — CI is the source of truth)
+#   local, with Android SDK + JDK 17:
+(cd apps/android && gradle :app:assembleDebug)
+gh workflow run android-build.yml     # CI build → ripple-debug-apk artifact
+
 # Installers via CI
 gh workflow run desktop-release.yml   # or push a v* tag
 # Regenerate icons from the one bubble definition:
@@ -247,7 +264,7 @@ here and are real verification.
    exist (helpers disabled) — consider removing.
 4. **Desktop unverified on device since rebrand** (mac + Linux). **Wayland portal
    never run for real.** Owner hasn't checked Linux yet.
-5. **Temporary branch CI trigger** in `desktop-release.yml` to remove.
+5. ✅ **DONE** — temporary dev-branch CI trigger removed from `desktop-release.yml`.
 6. **Repo still named `yap`** — owner to rename to `ripple`.
 
 ---
@@ -260,9 +277,24 @@ leaving the keyboard**, OR open the **full app** (a website-identical screen) fo
 the complete experience plus keyboard settings. Same signed APK runs on phones
 and **Android TV** (leanback). FlorisBoard is the base (don't reinvent a keyboard).
 
+### Progress (2026-06-17)
+✅ **Slice 1 — container app, CI-green** (see §5 "Android container app"). The
+shared **networking + crypto + UI** layer is built and compiles via CI: a full
+encrypted peer (Connect + Chat). This is the foundation the IME shares.
+**Remaining (in priority order):** (a) the **FlorisBoard IME fork** + Ripple
+panel + commit-at-cursor; (b) the **foreground Service** owning the one socket
+for IME+app (today `RippleClient` is ViewModel-owned — lift it into the Service
+when the IME lands); (c) QR scan / dictation / Settings / setup wizard; (d) the
+signed-APK release workflow; (e) TV D-pad polish + replace placeholder icon with
+the canonical bubble.
+
 ### Architecture (recommended)
 - **Fork FlorisBoard** (Apache-2.0, Kotlin/Gradle/AndroidX) into `apps/android/`.
-  Keep its IME engine, layouts, emoji, clipboard, theming. **Preserve `NOTICE`**.
+  ⚠ The current `apps/android/` is the **container-app Gradle project** (module
+  `:app`, package `com.ripple.app`). When vendoring FlorisBoard, add it as
+  sibling module(s) and reuse `:app`'s `RippleClient`/crypto — don't fork over
+  the existing project. Keep its IME engine, layouts, emoji, clipboard, theming.
+  **Preserve `NOTICE`**.
 - **Ripple panel inside the IME:** a toolbar key opens a panel (same pattern as
   FlorisBoard's clipboard/emoji panels) with tabs **Connect / Live / History**.
   Commit received text at the cursor via `currentInputConnection.commitText()`.
@@ -324,6 +356,16 @@ and **Android TV** (leanback). FlorisBoard is the base (don't reinvent a keyboar
 
 ## 11. Status / history log (newest first)
 
+- 2026-06-17 (late): Session run from the **owner's Mac** (can reach the relay).
+  (1) **Verified the live deploy** — prod `sw.js` = `ripple-v11` = `master`,
+  `/healthz` ok (closes the long-standing "can't confirm live" gap). (2) Removed
+  the temporary dev-branch trigger from `desktop-release.yml` (§9.5 done).
+  (3) **Started the Android keyboard build** — scaffolded `apps/android/` as a
+  CI-green container app: Gradle/AGP-8.7/Kotlin-2.1/Compose, `net/RippleClient`
+  (OkHttp WS, §4 protocol), `RippleViewModel` + Compose Connect/Chat in warm-clay
+  M3, crypto reused from `core-kt` by source, leanback intent for TV, adaptive
+  icon/banner, `android-build.yml` (debug APK artifact, build passed). Merged to
+  `master`. Next: the FlorisBoard IME fork. **Not device-tested.**
 - 2026-06-17 (night): Cleared the two Android blockers. (1) Rewrote
   `docs/protocol.md` + `docs/security.md` to match the running code (they
   described a different, never-built protocol). (2) Built the **Kotlin crypto
