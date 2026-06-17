@@ -23,9 +23,21 @@ Features: pairing, live device count, **Type-at-cursor vs Copy-to-clipboard**,
 **Stop pasting**, **Undo last**, send-to-phone, system tray (Show / Disconnect /
 Quit). On macOS it prompts once for Accessibility permission.
 
-**Not yet done:** Windows/Linux run-through (code is cross-platform via `enigo`,
-but Linux Wayland should use the XDG RemoteDesktop portal — see the spec);
-start-on-login; release packaging (Task C).
+**Linux note:** X11 works out of the box (clipboard + Ctrl+V via `enigo`). On
+**Wayland** the app types via `wtype` (wlroots: Sway/Hyprland) or `ydotool`
+(GNOME/KDE — needs the `ydotoold` daemon running). If typing does nothing on a
+GNOME/KDE Wayland session, install one of them, e.g.:
+
+```sh
+sudo apt install ydotool   # then: sudo ydotoold &
+# or, on wlroots compositors:
+sudo apt install wtype
+```
+
+A no-install path via the XDG RemoteDesktop portal is the planned follow-up.
+
+**Not yet done:** start-on-login; XDG portal for zero-setup Wayland; final shared
+logo / app icon.
 
 ## Run (dev)
 
