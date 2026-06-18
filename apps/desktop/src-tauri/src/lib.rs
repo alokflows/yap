@@ -423,17 +423,33 @@ pub fn run() {
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     use tauri::menu::{Menu, MenuItem};
-    use tauri::tray::TrayIconBuilder;
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
     let show = MenuItem::with_id(app, "show", "Show Ripple", true, None::<&str>)?;
     let disconnect_i = MenuItem::with_id(app, "disconnect", "Disconnect", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &disconnect_i, &quit])?;
 
-    let _tray = TrayIconBuilder::new()
-        .icon(app.default_window_icon().unwrap().clone())
+    let mut builder = TrayIconBuilder::new()
         .menu(&menu)
-        .show_menu_on_left_click(true)
+        // Right-click opens the menu; a left-click brings the window straight
+        // back, so the app stays reachable like the old taskbar helper instead
+        // of vanishing into the tray.
+        .show_menu_on_left_click(false)
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                if let Some(w) = tray.app_handle().get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.unminimize();
+                    let _ = w.set_focus();
+                }
+            }
+        })
         .on_menu_event(|app, event| match event.id().as_ref() {
             "show" => {
                 if let Some(w) = app.get_webview_window("main") {
@@ -449,7 +465,12 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             // avoids any slow teardown of the clipboard/relay threads.
             "quit" => std::process::exit(0),
             _ => {}
-        })
-        .build(app)?;
+        });
+
+    // Use the app icon for the tray when it's available; never panic if it isn't.
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone());
+    }
+    let _tray = builder.build(app)?;
     Ok(())
 }
