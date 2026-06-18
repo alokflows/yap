@@ -1,17 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Placeholder Ripple speech bubble in clay. Replace with the canonical bubble
-     (server/public/icon.svg) when the icon pipeline is wired for Android. -->
+<!-- Canonical Ripple speech bubble (paper) on the clay tile (ic_launcher_background).
+     Mirrors server/public/icon.svg, scaled into the 108dp adaptive safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Tail (drawn first, under the body) -->
     <path
-        android:fillColor="#C4673F"
-        android:pathData="M40,60 L30,82 L54,67 Z" />
-    <!-- Rounded bubble body -->
-    <path
-        android:fillColor="#C4673F"
-        android:pathData="M42,32 H66 A14,14 0 0 1 80,46 V54 A14,14 0 0 1 66,68 H42 A14,14 0 0 1 28,54 V46 A14,14 0 0 1 42,32 Z" />
+        android:fillColor="#FAF3ED"
+        android:pathData="M41.4,39.1 L65.25,39.1 A11.25,11.25 0 0 1 65.25,61.6 L42.6,61.6 C39.1,65.8 33.5,68.9 31.5,68.9 L31.5,48.9 A9.84,9.84 0 0 1 41.4,39.1 Z" />
 </vector>

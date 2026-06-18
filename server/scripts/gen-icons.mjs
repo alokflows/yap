@@ -23,8 +23,8 @@ const PAPER = '#faf3ed';
 
 // The bubble outline (single source of truth for the whole brand).
 const BUBBLE = (fill) =>
-  `<path d="M 166 150 L 336 150 A 80 80 0 0 1 336 310 L 206 310 ` +
-  `C 156 314 118 344 98 366 C 108 346 96 324 96 300 L 96 220 ` +
+  `<path d="M 166 150 L 336 150 A 80 80 0 0 1 336 310 L 175 310 ` +
+  `C 150 340 110 362 96 362 L 96 220 ` +
   `A 70 70 0 0 1 166 150 Z" fill="${fill}"/>`;
 
 // Canonical icon: clay rounded-square tile + paper bubble.

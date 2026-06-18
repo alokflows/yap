@@ -3,16 +3,3 @@ Copyright 2026 The Ripple Authors
 
 This product includes software developed as part of the Ripple project,
 licensed under the Apache License, Version 2.0.
-
-------------------------------------------------------------------------
-Ripple Keyboard (apps/android) is derived from FlorisBoard
-  https://github.com/florisboard/florisboard
-  Copyright FlorisBoard contributors
-  Licensed under the Apache License, Version 2.0.
-
-Portions of the Android keyboard's input-method engine, layout system,
-theming, emoji, and clipboard features originate from FlorisBoard and
-remain under the Apache License, Version 2.0. Original FlorisBoard
-copyright and license notices are retained within those files.
-------------------------------------------------------------------------
-</content>
