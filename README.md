@@ -48,11 +48,15 @@ there are no accounts, logs, or API keys.
 
 ## Download
 
+All downloads live on one release: **[Releases → latest ↗](https://github.com/alokflows/ripple/releases/latest)**.
+
 | Platform | Get it | Notes |
 | --- | --- | --- |
 | **Web** | [Open the app ↗](https://yap-mkk4.onrender.com) | Works on any device with a browser. Installable as a PWA. |
-| **Android + TV** | [Latest APK ↗](https://github.com/alokflows/ripple/releases/tag/android-dev) | A full keyboard *and* app in one. Sideload, then enable the Ripple keyboard. |
-| **macOS · Windows · Linux** | [Desktop builds ↗](https://github.com/alokflows/ripple/releases/tag/desktop-dev) | `.dmg` · `.msi`/`.exe` · `.AppImage`/`.deb`/`.rpm`. Types at your cursor. |
+| **Android + TV** | `Ripple-android.apk` | A keyboard *and* app in one. Sideload, then enable the Ripple keyboard. |
+| **macOS** | `.dmg` | Types received text at your cursor. |
+| **Windows** | `.exe` | Types received text at your cursor. |
+| **Linux** | `.AppImage` | Types received text at your cursor. |
 | **iOS** | _coming later_ | Keyboard extension + app. |
 
 > Android & desktop are early builds — see **[Status](#status)**. The web app is the

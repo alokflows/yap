@@ -33,9 +33,16 @@ enum class Screen { Connect, Scan, Chat }
  */
 class RippleViewModel(app: Application) : AndroidViewModel(app) {
 
-    init { RippleRepository.init(app) }
+    init {
+        RippleRepository.init(app)
+        // Re-pair with the remembered code so the app opens straight into chat
+        // instead of asking for a code every launch.
+        RippleRepository.resume()
+    }
 
-    private val screen = MutableStateFlow(if (RippleRepository.isConnected) Screen.Chat else Screen.Connect)
+    private val screen = MutableStateFlow(
+        if (RippleRepository.isConnected || RippleRepository.savedCode != null) Screen.Chat else Screen.Connect
+    )
 
     val ui: StateFlow<UiState> = combine(screen, RippleRepository.state) { scr, s ->
         UiState(

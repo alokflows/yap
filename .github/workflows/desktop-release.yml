@@ -20,11 +20,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest        # universal .dmg/.app (Intel + Apple Silicon)
+          - platform: macos-latest        # universal .dmg (Intel + Apple Silicon)
             args: "--target universal-apple-darwin"
-          - platform: ubuntu-22.04        # .AppImage + .deb
+          - platform: ubuntu-22.04        # .AppImage
             args: ""
-          - platform: windows-latest      # .msi + .exe
+          - platform: windows-latest      # .exe (NSIS)
             args: ""
     runs-on: ${{ matrix.platform }}
     steps:
@@ -62,9 +62,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: apps/desktop
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'desktop-dev' }}
-          releaseName: "Ripple Desktop ${{ github.ref_type == 'tag' && github.ref_name || 'dev build' }}"
-          releaseBody: "Download the build for your OS. macOS: .dmg · Windows: .msi/.exe · Linux: .AppImage/.deb"
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
+          releaseName: "Ripple"
+          releaseBody: "Download for your computer — macOS: .dmg · Windows: .exe · Linux: .AppImage. Android APK is on the same release."
           releaseDraft: false
-          prerelease: true
+          prerelease: false
           args: ${{ matrix.args }}

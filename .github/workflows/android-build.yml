@@ -64,19 +64,18 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/dist"
           cp app/build/outputs/apk/debug/*.apk "$GITHUB_WORKSPACE/dist/Ripple-android.apk"
 
-      - name: Publish APK to a Release
+      - name: Publish APK to the Release
         if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'android-dev' }}
-          name: ${{ startsWith(github.ref, 'refs/tags/') && format('Ripple {0}', github.ref_name) || 'Ripple — Android (latest)' }}
-          prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
+          name: "Ripple"
+          prerelease: false
           files: dist/Ripple-android.apk
           body: |
-            **Ripple for Android** — the keyboard + app (debug build, sideloadable).
+            **Ripple** — type on one device, it lands at the cursor on another.
 
-            1. Download and install `Ripple-android.apk`.
-            2. Open Ripple, pair with a code (or scan a QR).
-            3. Enable **Ripple Keyboard** in Settings → System → Languages & input.
+            - **Android / TV:** `Ripple-android.apk` — install, open, pair with a code, then enable the Ripple keyboard.
+            - **macOS / Windows / Linux:** `.dmg` · `.exe` · `.AppImage` below.
 
-            Same APK runs on phones and Android TV. Updated automatically from `master`.
+            Same APK runs on phones and Android TV.

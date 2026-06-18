@@ -47,6 +47,9 @@ object RippleRepository {
     val isConnected: Boolean get() = client?.isConnected == true
     val currentCode: String get() = _state.value.code
 
+    /** The last code we paired with, remembered across launches (null if none). */
+    val savedCode: String? get() = if (initialized) prefs().getString("code", null)?.takeIf { it.isNotBlank() } else null
+
     fun init(context: Context) {
         if (initialized) return
         app = context.applicationContext
@@ -57,12 +60,18 @@ object RippleRepository {
     fun connect(code: String) {
         val normalized = code.trim()
         if (normalized.isEmpty()) return
+        prefs().edit().putString("code", normalized).apply()
         client?.disconnect()
         val c = RippleClient(did = did, onEvent = ::onEvent)
         client = c
         _state.update { RippleState(code = normalized) }
         c.connect(normalized)
         RippleConnectionService.start(app, normalized)
+    }
+
+    /** Re-pair with the remembered code on app start, so the user isn't asked again. */
+    fun resume() {
+        if (client == null) savedCode?.let { connect(it) }
     }
 
     /** Seal + send; returns the optimistic bubble (also appended to [state]). */
@@ -75,9 +84,12 @@ object RippleRepository {
     fun leave() {
         client?.disconnect()
         client = null
+        prefs().edit().remove("code").apply()
         _state.update { RippleState() }
         RippleConnectionService.stop(app)
     }
+
+    private fun prefs() = app.getSharedPreferences("ripple", Context.MODE_PRIVATE)
 
     fun dismissNotice() = _state.update { it.copy(notice = null) }
 
@@ -109,11 +121,11 @@ object RippleRepository {
     }
 
     private fun stableDid(ctx: Context): String {
-        val prefs = ctx.getSharedPreferences("ripple", Context.MODE_PRIVATE)
-        prefs.getString("did", null)?.let { return it }
+        val p = ctx.getSharedPreferences("ripple", Context.MODE_PRIVATE)
+        p.getString("did", null)?.let { return it }
         val bytes = ByteArray(12).also { SecureRandom().nextBytes(it) }
         val d = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
-        prefs.edit().putString("did", d).apply()
+        p.edit().putString("did", d).apply()
         return d
     }
 }
