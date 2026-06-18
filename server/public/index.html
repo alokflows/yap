@@ -495,9 +495,10 @@
       <h1>Ripple</h1>
     </div>
     <div class="header-actions">
-      <!-- Helper downloads speak the OLD plaintext protocol, so they break under
-           E2E encryption. Hidden until the Tauri desktop app replaces them. -->
-      <button class="icon-btn hidden" id="pasteBtn" type="button" aria-label="Paste straight to your cursor" title="Paste straight to your cursor">
+      <!-- Paste-at-cursor: download a tiny helper that pastes received text at
+           your cursor. The helper reads plain text (/poll), so "helper mode"
+           mirrors each sent message as plain text to the raw-code lane. -->
+      <button class="icon-btn" id="pasteBtn" type="button" aria-label="Paste straight to your cursor" title="Paste straight to your cursor">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M9 4H7a2 2 0 0 0-2 2v3"/><path d="M5 14v4a2 2 0 0 0 2 2h3"/>
           <rect x="8" y="2" width="8" height="4" rx="1"/>
@@ -778,6 +779,10 @@
       .addEventListener('change', () => { if (theme === 'system') applyTheme('system'); });
 
     let ws = null, reconnectTimer = null, backoff = 500;
+    // Plaintext mirror to the raw-code room so a desktop helper (which polls
+    // /poll in plain text and can't read the encrypted lane) can paste. Opt-in.
+    let helperLink = null;
+    let helperMode = localStorage.getItem('ripple.helper') === '1';
     const outbox = new Map(); // cid -> plaintext, awaiting server ack
     let clientSeq = 0;        // client-side id so each ack pairs to the right bubble
     let decryptWarned = false; // surface "wrong code" once per session, not per message
@@ -1038,6 +1043,7 @@
         if (sock !== ws) return;
         backoff = 500;
         setStatus('waiting', '0 devices');
+        openHelperLink(); // if helper mode is on, mirror this code's plaintext lane
       };
       sock.onmessage = (ev) => {
         if (sock !== ws) return;
@@ -1057,6 +1063,30 @@
 
     function closeCurrent() {
       if (ws) { ws._intentional = true; try { ws.close(); } catch {} ws = null; }
+    }
+
+    // ---- desktop helper bridge -------------------------------------------
+    // A small helper app polls /poll/<CODE> in plain text and pastes at the
+    // cursor. It can't read the encrypted lane, so in helper mode we ALSO send
+    // each outgoing message as plain text to the raw-code room (send-only — the
+    // helper just receives). Enabled when the user downloads a helper.
+    function openHelperLink() {
+      const room = (els.room.value || '').trim().toUpperCase();
+      if (!helperMode || !room) return;
+      if (helperLink && helperLink._room === room &&
+          (helperLink.readyState === WebSocket.OPEN || helperLink.readyState === WebSocket.CONNECTING)) return;
+      closeHelperLink();
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const url = `${proto}//${location.host}/ws?role=${role}&room=${encodeURIComponent(room)}&did=${encodeURIComponent(myDid + '-h')}`;
+      try { const s = new WebSocket(url); s._room = room; helperLink = s; } catch {}
+    }
+    function closeHelperLink() {
+      if (helperLink) { try { helperLink.close(); } catch {} helperLink = null; }
+    }
+    function setHelperMode(on) {
+      helperMode = on;
+      localStorage.setItem('ripple.helper', on ? '1' : '0');
+      if (on) openHelperLink(); else closeHelperLink();
     }
 
     // ---- send / receive ---------------------------------------------------
@@ -1259,6 +1289,11 @@
       const cid = 'c' + (++clientSeq);
       outbox.set(cid, value);
       ws.send(JSON.stringify({ type: 'text', text: blob, cid }));
+      // Helper mode: also drop a plain-text copy on the raw-code lane so a
+      // desktop helper can paste it at the cursor.
+      if (helperLink && helperLink.readyState === WebSocket.OPEN) {
+        try { helperLink.send(JSON.stringify({ type: 'text', text: value })); } catch {}
+      }
       return true;
     }
 
@@ -1496,6 +1531,12 @@
       else if (/Linux/i.test(ua) && !/Android/i.test(ua)) btn = els.dlLinux;
       if (btn) btn.classList.add('primary');
     })();
+
+    // Downloading a helper turns on helper mode (plain-text lane) so it can paste.
+    [els.dlMac, els.dlWin, els.dlLinux].forEach((b) => b && b.addEventListener('click', () => {
+      setHelperMode(true);
+      toast('Helper mode on — messages send as plain text so the helper can paste.');
+    }));
 
     els.clearSession.addEventListener('click', () => {
       if (!history.length) return;
